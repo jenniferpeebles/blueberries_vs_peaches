@@ -12,8 +12,7 @@ urlcolor: blue
 
 ```{r setup, eval = TRUE, echo = FALSE, include = FALSE}
 
-#### reminder that all geojson exports for Pete's DataWrapper maps must be in projection WGS 84 and NOT web mercator. 
-
+# Reminder that all geojson exports for Pete's DataWrapper maps must be in projection WGS 84 and NOT web mercator. 
 
 # Load some packages
 packages_core <- c("tidyverse", "janitor", "knitr", "magrittr", "lubridate", "cowplot", "viridis", "tigris", "sp", "sf", "readr", "rnassqs", "scales", "usethis")
@@ -92,11 +91,24 @@ dir.create(output_dir, showWarnings = FALSE)
 
 timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 
-
 ```
 
-
 ```{r helper_functions, eval = TRUE, echo = FALSE, include = FALSE}
+
+# Helper: clean NASS value column
+
+clean_nass_value <- function(x) {
+  if (is.numeric(x)) {
+    return(x)
+  }
+  
+  readr::parse_number(as.character(x))
+}
+
+# sanity check
+exists("clean_nass_value")
+clean_nass_value("1,234")
+
 
 add_watermark_plot <- function(p, watermark_text = "NOT FOR PUBLICATION") {
   cowplot::ggdraw(p) +
@@ -113,34 +125,13 @@ add_watermark_plot <- function(p, watermark_text = "NOT FOR PUBLICATION") {
 
 ```
 
-```{r pull_in_data, eval = TRUE, echo = FALSE, include = FALSE}
-# ============================================================
+```{r pull_production_data, eval = TRUE, echo = FALSE, include = FALSE}
+
 # USDA NASS Quick Stats: peaches + blueberries by state/year
-# Jennifer Peebles / AJC
-# ============================================================
 
 # Option 1: put your key in .Renviron as:
 # NASS_API_KEY="your_key_here"
 nassqs_auth(key = Sys.getenv("NASS_API_KEY"))
-# ------------------------------------------------------------
-# Helper: clean NASS value column
-# ------------------------------------------------------------
-
-clean_nass_value <- function(x) {
-  if (is.numeric(x)) {
-    return(x)
-  }
-  
-  readr::parse_number(as.character(x))
-}
-
-# sanity check
-exists("clean_nass_value")
-clean_nass_value("1,234")
-
-```
-
-```{r pull_production_data, eval = TRUE, echo = FALSE, include = FALSE}
 
 pull_crop_production <- function(commodity, start_year = 2000, end_year = 2024) {
 
@@ -163,44 +154,11 @@ pull_crop_production <- function(commodity, start_year = 2000, end_year = 2024) 
 
 peaches_raw <- pull_crop_production("PEACHES")
 blueberries_raw <- pull_crop_production("BLUEBERRIES")
+
 ```
 ```{r filter_to_annual_prod_series, eval = TRUE, echo = FALSE, include = FALSE}
 
-# ------------------------------------------------------------
 # Filter to the main annual state production series
-# ------------------------------------------------------------
-
-# peaches <- peaches_raw |>
-#   filter(
-#     str_detect(short_desc, "PEACHES"),
-#     str_detect(short_desc, "UTILIZED"),
-#     unit_desc == "TONS"
-#   ) |>
-#   select(
-#     year,
-#     state_name,
-#     state_alpha,
-#     commodity,
-#     short_desc,
-#     production = value_num,
-#     unit_desc
-#   )
-# 
-# blueberries <- blueberries_raw |>
-#   filter(
-#     str_detect(short_desc, "BLUEBERRIES, TAME"),
-#     str_detect(short_desc, "UTILIZED"),
-#     unit_desc == "LB"
-#   ) |>
-#   select(
-#     year,
-#     state_name,
-#     state_alpha,
-#     commodity,
-#     short_desc,
-#     production = value_num,
-#     unit_desc
-#   )
 
 # ------------------------------------------------------------
 # Look at available series before choosing final one
@@ -213,9 +171,8 @@ peaches_raw |>
 blueberries_raw |>
   count(short_desc, unit_desc, class_desc, prodn_practice_desc, sort = TRUE)
  
-# ------------------------------------------------------------
+
 # Filter to the main annual state production series
-# ------------------------------------------------------------
 
 peaches <- peaches_raw |>
   filter(
@@ -236,7 +193,7 @@ peaches <- peaches_raw |>
 blueberries <- blueberries_raw |>
   filter(
     str_detect(short_desc, "BLUEBERRIES"),
-    str_detect(short_desc, "TAME"), # be sure to use this so that it filters out all the wild blueberries grown in Maine, which can otherwise throw off this analysis
+    str_detect(short_desc, "TAME"), # Be sure to use this so that it filters out all the wild blueberries grown in Maine, which can otherwise throw off this analysis
     str_detect(short_desc, "UTILIZED"),
     unit_desc == "LB"
   ) |>
@@ -249,18 +206,6 @@ blueberries <- blueberries_raw |>
     production = value_num,
     unit_desc
   )
-
-# rank_states <- function(df) {
-#   df |>
-#     group_by(year) |>
-#     mutate(
-#       rank = min_rank(desc(production)),
-#       national_total = sum(production, na.rm = TRUE),
-#       pct_of_us = production / national_total
-#     ) |>
-#     ungroup()
-# }
-
 
 
 ```
@@ -278,24 +223,6 @@ rank_states <- function(df) {
     ungroup()
 }
 
-# peach_ranked <- rank_states(peaches)
-# blueberry_ranked <- rank_states(blueberries)
-
-# ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
-#   filter(state_alpha == "GA") |>
-#   mutate(
-#     commodity_label = case_when(
-#       commodity == "PEACHES" ~ "Peaches",
-#       commodity == "BLUEBERRIES" ~ "Blueberries",
-#       TRUE ~ commodity
-#     )
-#   ) |>
-#   arrange(commodity_label, year)
-
-# ga_summary
-
-####
-####
 peach_ranked <- rank_states(peaches)
 blueberry_ranked <- rank_states(blueberries)
 
@@ -335,7 +262,6 @@ latest_blueberries
 ```
 ```{r write_out_stats, eval = TRUE, echo = FALSE, include = FALSE}
 
-
 output_dir <- "output"
 dir.create(output_dir, showWarnings = FALSE)
 
@@ -365,7 +291,7 @@ p_rank <- ga_summary |>
   scale_y_reverse(breaks = 1:10) +
   labs(
   title = "Georgia: The Peach State or the Blueberry State?",
-    subtitle = "Georgia hasn't been America's top producer of peaches in many years now,\nbut it's one of the nation's top three in blueberries, federal data shows.",
+    subtitle = "Georgia hasn't been America's top producer of peaches in many years now,\nbut it's one of the nation's top three in blueberries, federal data shows. Numbers\nhere do not include wild blueberries that grow in some states such as Maine.",
     x = NULL,
     y = "National rank among states",
     color = NULL,
@@ -396,7 +322,7 @@ p_production <- ga_production_lbs |>
   scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
   labs(
     title = "Berries rise over peaches",
-    subtitle = "Georgia's blueberry harvest far outstrips its peach output these days, federal data shows.\nPeach production stats have been converted from tons to pounds for comparison.",
+    subtitle = "Georgia's blueberry harvest far outstrips its peach output these days, federal\ndata shows. Peach production stats have been converted from tons to pounds\nfor comparison.",
     x = NULL,
     y = "Production, in pounds",
     color = NULL,
@@ -432,9 +358,7 @@ ggsave(
 
 ```{r county_blueberry_map, eval = TRUE, echo = TRUE, include = TRUE}
 
-# ------------------------------------------------------------
 # Pull Georgia county blueberry acreage
-# ------------------------------------------------------------
 
 ga_blueberry_counties_probe <- nassqs(
   sector_desc = "CROPS",
@@ -446,17 +370,6 @@ ga_blueberry_counties_probe <- nassqs(
   format = "json"
 ) |>
   janitor::clean_names()
-
-ga_blueberry_counties_probe |>
-  count(
-    statisticcat_desc,
-    class_desc,
-    unit_desc,
-    short_desc,
-    sort = TRUE
-  )
-  # |>
-  # View()
 
 ga_blueberry_counties_raw <- nassqs(
   sector_desc = "CROPS",
@@ -474,9 +387,7 @@ ga_blueberry_counties_raw <- nassqs(
 
 glimpse(ga_blueberry_counties_raw)
 
-# ------------------------------------------------------------
 # Clean county blueberry data
-# ------------------------------------------------------------
 
 ga_blueberry_counties <- ga_blueberry_counties_raw |>
   mutate(
@@ -494,9 +405,7 @@ ga_blueberry_counties <- ga_blueberry_counties_raw |>
     .groups = "drop"
   )
 
-# ------------------------------------------------------------
 # Pull Georgia counties shapefile
-# ------------------------------------------------------------
 
 options(tigris_use_cache = TRUE)
 
@@ -507,9 +416,7 @@ ga_counties <- tigris::counties(
 ) |>
   st_transform(4326)
 
-# ------------------------------------------------------------
 # Join spatial + USDA data
-# ------------------------------------------------------------
 
 ga_blueberry_counties_raw |>
   count(value, sort = TRUE)
@@ -530,8 +437,6 @@ sort(unique(ga_blueberry_counties$county_name))
 sort(unique(str_to_upper(ga_counties$NAME)))
 
 glimpse(county_blueberry_map)
-# 
-# View(county_blueberry_map)
 
 ```
 
@@ -562,9 +467,7 @@ p_blueberry_map <- ggplot(county_blueberry_map) +
   panel.grid.minor = element_blank()
 )
 
-# ------------------------------------------------------------
 # Add watermark
-# ------------------------------------------------------------
 
 p_blueberry_map_watermarked <- add_watermark_plot(
   p_blueberry_map,
@@ -592,6 +495,7 @@ ggsave(
 
 ```{r export_geojson_choropleth, eval = TRUE, echo = FALSE, include = FALSE}
 
+# GeoJSON is correctly WGS84 because ga_counties gets st_transform(4326) before the join
 
 sf::st_write(
   county_blueberry_map,
