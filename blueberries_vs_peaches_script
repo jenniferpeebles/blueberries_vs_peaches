@@ -16,7 +16,7 @@ urlcolor: blue
 
 
 # Load some packages
-packages_core <- c("tidyverse", "janitor", "knitr", "magrittr", "lubridate", "kableExtra")
+packages_core <- c("tidyverse", "janitor", "knitr", "magrittr", "lubridate", "cpwplot")
 # If you're going to be working with census data ...
 packages_census <- c("tidycensus", "tigris")
 packages_map <- c("sf", "rnaturalearth", "sp")
@@ -163,6 +163,42 @@ peaches_raw <- pull_crop_production("PEACHES")
 blueberries_raw <- pull_crop_production("BLUEBERRIES")
 
 # ------------------------------------------------------------
+# Filter to the main annual state production series
+# ------------------------------------------------------------
+
+peaches <- peaches_raw |>
+  filter(
+    str_detect(short_desc, "PEACHES"),
+    str_detect(short_desc, "UTILIZED"),
+    unit_desc == "TONS"
+  ) |>
+  select(
+    year,
+    state_name,
+    state_alpha,
+    commodity,
+    short_desc,
+    production = value_num,
+    unit_desc
+  )
+
+blueberries <- blueberries_raw |>
+  filter(
+    str_detect(short_desc, "BLUEBERRIES, TAME"),
+    str_detect(short_desc, "UTILIZED"),
+    unit_desc == "LB"
+  ) |>
+  select(
+    year,
+    state_name,
+    state_alpha,
+    commodity,
+    short_desc,
+    production = value_num,
+    unit_desc
+  )
+
+# ------------------------------------------------------------
 # Look at available series before choosing final one
 # This is important because NASS has fresh/processing/utilized/etc.
 # ------------------------------------------------------------
@@ -295,5 +331,133 @@ ga_summary |>
     caption = "Source: USDA NASS Quick Stats | Analysis: Jennifer Peebles/AJC"
   ) +
   theme_minimal()
+
+
+# ------------------------------------------------------------
+# Rank states by year
+# ------------------------------------------------------------
+
+rank_states <- function(df) {
+  df |>
+    group_by(year) |>
+    mutate(
+      rank = min_rank(desc(production)),
+      national_total = sum(production, na.rm = TRUE),
+      pct_of_us = production / national_total
+    ) |>
+    ungroup()
+}
+
+peach_ranked <- rank_states(peaches)
+blueberry_ranked <- rank_states(blueberries)
+
+ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
+  filter(state_alpha == "GA") |>
+  mutate(
+    commodity_label = case_when(
+      commodity == "PEACHES" ~ "Peaches",
+      commodity == "BLUEBERRIES" ~ "Blueberries",
+      TRUE ~ commodity
+    )
+  ) |>
+  arrange(commodity_label, year)
+
+ga_summary
+
+# ------------------------------------------------------------
+# Watermark helper
+# ------------------------------------------------------------
+
+add_watermark_plot <- function(p, watermark_text = "NOT FOR PUBLICATION") {
+  cowplot::ggdraw(p) +
+    cowplot::draw_label(
+      watermark_text,
+      x = 0.5,
+      y = 0.5,
+      angle = 30,
+      size = 32,
+      alpha = 0.18,
+      fontface = "bold"
+    )
+}
+
+
+# ------------------------------------------------------------
+# Chart 1: Georgia national rank
+# ------------------------------------------------------------
+
+p_rank <- ga_summary |>
+  ggplot(aes(x = year, y = rank, color = commodity_label)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  scale_y_reverse(breaks = 1:10) +
+  labs(
+    title = "Georgia ranks much higher nationally in blueberries than peaches",
+    subtitle = "Annual state ranking by USDA NASS utilized production",
+    x = NULL,
+    y = "National rank",
+    color = NULL,
+    caption = "Source: USDA NASS Quick Stats | Analysis: Jennifer Peebles/AJC"
+  ) +
+  theme_minimal()
+
+p_rank_watermarked <- add_watermark_plot(p_rank)
+p_rank_watermarked
+
+# ------------------------------------------------------------
+# Chart 2: Georgia production volume
+# ------------------------------------------------------------
+
+ga_production_lbs <- ga_summary |>
+  mutate(
+    production_lbs = case_when(
+      commodity == "PEACHES" ~ production * 2000,
+      commodity == "BLUEBERRIES" ~ production,
+      TRUE ~ NA_real_
+    )
+  )
+
+p_production <- ga_production_lbs |>
+  ggplot(aes(x = year, y = production_lbs, color = commodity_label)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+  labs(
+    title = "Georgia now produces far more blueberries than peaches",
+    subtitle = "Peach production converted from tons to pounds for comparison",
+    x = NULL,
+    y = "Production, in pounds",
+    color = NULL,
+    caption = "Source: USDA NASS Quick Stats | Analysis: Jennifer Peebles/AJC"
+  ) +
+  theme_minimal()
+
+p_production_watermarked <- add_watermark_plot(p_production)
+p_production_watermarked
+
+# ------------------------------------------------------------
+# Export chart JPGs
+# ------------------------------------------------------------
+
+output_dir <- "output"
+dir.create(output_dir, showWarnings = FALSE)
+
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+
+ggsave(
+  filename = file.path(output_dir, paste0("ga_peach_blueberry_rank_", timestamp, ".jpg")),
+  plot = p_rank_watermarked,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
+ggsave(
+  filename = file.path(output_dir, paste0("ga_peach_blueberry_production_lbs_", timestamp, ".jpg")),
+  plot = p_production_watermarked,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
 
 ```
