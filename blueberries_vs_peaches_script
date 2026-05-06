@@ -16,11 +16,8 @@ urlcolor: blue
 
 
 # Load some packages
-packages_core <- c("tidyverse", "janitor", "knitr", "magrittr", "lubridate", "cowplot", "viridis", "tigris", "sp", "sf")
-# If you're going to be working with census data ...
-# If you need to append packages_census or packages_map to the core list, use append ...
+packages_core <- c("tidyverse", "janitor", "knitr", "magrittr", "lubridate", "cowplot", "viridis", "tigris", "sp", "sf", "readr", "rnassqs", "scales", "usethis")
 
-#my_package_list <- append(packages, packages_census, packages_map)
 lapply(packages_core, function(pkg) {
   if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
   library(pkg, character.only = TRUE)
@@ -33,14 +30,12 @@ if (!pkgbuild::has_rtools()) {
   message("Rtools is installed and ready.")
 }
 
-# Settings
-# Preferred options
+# Settings and preferred options
 options(digits = 3, 
         scipen = 999, 
         stringsAsFactors = FALSE,
         width = 80
 )
-
 
 knitr::opts_chunk$set(
   echo = TRUE, 
@@ -101,16 +96,6 @@ todays_date_in_sql_format <- format(Sys.Date(), '%Y-%m-%d') %>% print()
 # Jennifer Peebles / AJC
 # ============================================================
 
-library(tidyverse)
-library(janitor)
-library(rnassqs)
-library(scales)
-library(usethis)
-library(readr)
-
-# install.packages("usethis")
-# install.packages("rnassqs") if needed
-
 # Option 1: put your key in .Renviron as:
 # NASS_API_KEY="your_key_here"
 nassqs_auth(key = Sys.getenv("NASS_API_KEY"))
@@ -129,8 +114,6 @@ clean_nass_value <- function(x) {
 # sanity check
 exists("clean_nass_value")
 clean_nass_value("1,234")
-# 
-
 
 # ------------------------------------------------------------
 # Pull production data
@@ -207,9 +190,6 @@ peaches_raw |>
 blueberries_raw |>
   count(short_desc, unit_desc, class_desc, prodn_practice_desc, sort = TRUE)
  
-
-#############
-
 # ------------------------------------------------------------
 # Filter to the main annual state production series
 # ------------------------------------------------------------
@@ -233,7 +213,7 @@ peaches <- peaches_raw |>
 blueberries <- blueberries_raw |>
   filter(
     str_detect(short_desc, "BLUEBERRIES"),
-    str_detect(short_desc, "TAME"),
+    str_detect(short_desc, "TAME"), # be sure to use this so that it filters out all the wild blueberries grown in Maine, which can otherwise throw off this analysis
     str_detect(short_desc, "UTILIZED"),
     unit_desc == "LB"
   ) |>
@@ -246,7 +226,6 @@ blueberries <- blueberries_raw |>
     production = value_num,
     unit_desc
   )
-
 
 rank_states <- function(df) {
   df |>
@@ -274,9 +253,6 @@ ga_summary |>
   )
 
 
-
-###
-###
 latest_year <- max(c(peach_ranked$year, blueberry_ranked$year), na.rm = TRUE)
 
 latest_peaches <- peach_ranked |>
@@ -291,9 +267,6 @@ latest_blueberries <- blueberry_ranked |>
 
 latest_peaches
 latest_blueberries
-
-
-###########
 
 output_dir <- "output"
 dir.create(output_dir, showWarnings = FALSE)
@@ -329,7 +302,6 @@ ga_summary |>
     caption = "Source: USDA NASS Quick Stats | Analysis: Jennifer Peebles/AJC"
   ) +
   theme_minimal()
-
 
 # ------------------------------------------------------------
 # Rank states by year
@@ -378,7 +350,6 @@ add_watermark_plot <- function(p, watermark_text = "NOT FOR PUBLICATION") {
       fontface = "bold"
     )
 }
-
 
 # ------------------------------------------------------------
 # Chart 1: Georgia national rank
@@ -487,12 +458,11 @@ ga_blueberry_counties_probe |>
   ) |>
   View()
 
-
 ga_blueberry_counties_raw <- nassqs(
   sector_desc = "CROPS",
   group_desc = "FRUIT & TREE NUTS",
   commodity_desc = "BLUEBERRIES",
-  class_desc = "TAME",
+  class_desc = "TAME", # filter out Maine's wild blueberries
   agg_level_desc = "COUNTY",
   state_alpha = "GA",
   statisticcat_desc = "AREA BEARING",
@@ -524,8 +494,6 @@ ga_blueberry_counties <- ga_blueberry_counties_raw |>
     .groups = "drop"
   )
 
-
-
 # ------------------------------------------------------------
 # Pull Georgia counties shapefile
 # ------------------------------------------------------------
@@ -538,8 +506,6 @@ ga_counties <- tigris::counties(
   class = "sf"
 ) |>
   st_transform(4326)
-
-
 
 # ------------------------------------------------------------
 # Join spatial + USDA data
@@ -562,9 +528,10 @@ county_blueberry_map <- ga_counties |>
 
 sort(unique(ga_blueberry_counties$county_name))
 sort(unique(ga_counties$NAME))
-glimpse(county_blueberry_map)
 
-View(county_blueberry_map)
+glimpse(county_blueberry_map)
+# 
+# View(county_blueberry_map)
 
 # ------------------------------------------------------------
 # Build choropleth
@@ -580,12 +547,19 @@ p_blueberry_map <- ggplot(county_blueberry_map) +
     labels = scales::comma
   ) +
   labs(
-    title = "Blueberry acreage is concentrated in South Georgia",
-    subtitle = "Georgia counties with reported blueberry acreage, 2022 USDA Census of Agriculture",
+    title = "South Georgia is blueberry country",
+    subtitle = "A swath of counties have made Georgia one of the nation's biggest blueberry producing states.",
     fill = "Acres",
-    caption = "Source: USDA NASS Census of Agriculture | Analysis: Jennifer Peebles/AJC"
+    caption = "Source: U.S. Department of Agriculture National Agricultural Statistics Service 2022 Census of Agriculture | Analysis: Jennifer Peebles/AJC"
   ) +
-  theme_minimal()
+  theme_minimal() +
+  theme(
+  axis.text = element_blank(),
+  axis.ticks = element_blank(),
+  axis.title = element_blank(),
+  panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank()
+)
 
 # ------------------------------------------------------------
 # Add watermark
