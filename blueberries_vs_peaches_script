@@ -548,9 +548,9 @@ p_blueberry_map <- ggplot(county_blueberry_map) +
   ) +
   labs(
     title = "South Georgia is blueberry country",
-    subtitle = "A swath of counties have made Georgia one of the nation's biggest blueberry producing states.",
+    subtitle = "A swath of counties have made Georgia one of the nation's\nbiggest blueberry-producing states.",
     fill = "Acres",
-    caption = "Source: U.S. Department of Agriculture National Agricultural Statistics Service 2022 Census of Agriculture | Analysis: Jennifer Peebles/AJC"
+    caption = "Source: U.S. Department of Agriculture National\n Agricultural Statistics Service 2022 Census of Agriculture\n Analysis & map: Jennifer Peebles\n(and probably Pete Corson)/AJC"
   ) +
   theme_minimal() +
   theme(
