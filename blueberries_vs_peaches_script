@@ -16,10 +16,8 @@ urlcolor: blue
 
 
 # Load some packages
-packages_core <- c("tidyverse", "janitor", "knitr", "magrittr", "lubridate", "cpwplot")
+packages_core <- c("tidyverse", "janitor", "knitr", "magrittr", "lubridate", "cowplot", "viridis", "tigris", "sp", "sf")
 # If you're going to be working with census data ...
-packages_census <- c("tidycensus", "tigris")
-packages_map <- c("sf", "rnaturalearth", "sp")
 # If you need to append packages_census or packages_map to the core list, use append ...
 
 #my_package_list <- append(packages, packages_census, packages_map)
@@ -461,3 +459,173 @@ ggsave(
 )
 
 ```
+
+```{r county_blueberry_map, eval = TRUE, echo = TRUE, include = TRUE}
+
+# ------------------------------------------------------------
+# Pull Georgia county blueberry acreage
+# ------------------------------------------------------------
+
+ga_blueberry_counties_probe <- nassqs(
+  sector_desc = "CROPS",
+  group_desc = "FRUIT & TREE NUTS",
+  commodity_desc = "BLUEBERRIES",
+  agg_level_desc = "COUNTY",
+  state_alpha = "GA",
+  year = 2022,
+  format = "json"
+) |>
+  janitor::clean_names()
+
+ga_blueberry_counties_probe |>
+  count(
+    statisticcat_desc,
+    class_desc,
+    unit_desc,
+    short_desc,
+    sort = TRUE
+  ) |>
+  View()
+
+
+ga_blueberry_counties_raw <- nassqs(
+  sector_desc = "CROPS",
+  group_desc = "FRUIT & TREE NUTS",
+  commodity_desc = "BLUEBERRIES",
+  class_desc = "TAME",
+  agg_level_desc = "COUNTY",
+  state_alpha = "GA",
+  statisticcat_desc = "AREA BEARING",
+  unit_desc = "ACRES",
+  year = 2022,
+  format = "json"
+) |>
+  janitor::clean_names()
+
+glimpse(ga_blueberry_counties_raw)
+
+# ------------------------------------------------------------
+# Clean county blueberry data
+# ------------------------------------------------------------
+
+ga_blueberry_counties <- ga_blueberry_counties_raw |>
+  mutate(
+    value_num = clean_nass_value(value),
+
+    county_name = county_name |>
+      str_remove(" County") |>
+      str_trim() |>
+      str_to_upper()
+  ) |>
+  filter(!is.na(value_num)) |>
+  group_by(county_name) |>
+  summarize(
+    blueberry_acres = sum(value_num, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+
+# ------------------------------------------------------------
+# Pull Georgia counties shapefile
+# ------------------------------------------------------------
+
+options(tigris_use_cache = TRUE)
+
+ga_counties <- tigris::counties(
+  state = "GA",
+  year = 2024,
+  class = "sf"
+) |>
+  st_transform(4326)
+
+
+
+# ------------------------------------------------------------
+# Join spatial + USDA data
+# ------------------------------------------------------------
+
+ga_blueberry_counties_raw |>
+  count(value, sort = TRUE)
+
+county_blueberry_map <- ga_counties |>
+  mutate(
+    county_name = NAME |>
+      str_remove(" County") |>
+      str_trim() |>
+      str_to_upper()
+  ) |>
+  left_join(
+    ga_blueberry_counties,
+    by = "county_name"
+  )
+
+sort(unique(ga_blueberry_counties$county_name))
+sort(unique(ga_counties$NAME))
+glimpse(county_blueberry_map)
+
+View(county_blueberry_map)
+
+# ------------------------------------------------------------
+# Build choropleth
+# ------------------------------------------------------------
+
+p_blueberry_map <- ggplot(county_blueberry_map) +
+  geom_sf(aes(fill = blueberry_acres),
+          color = "white",
+          linewidth = 0.15) +
+  scale_fill_viridis_c(
+    option = "C",
+    na.value = "grey90",
+    labels = scales::comma
+  ) +
+  labs(
+    title = "Blueberry acreage is concentrated in South Georgia",
+    subtitle = "Georgia counties with reported blueberry acreage, 2022 USDA Census of Agriculture",
+    fill = "Acres",
+    caption = "Source: USDA NASS Census of Agriculture | Analysis: Jennifer Peebles/AJC"
+  ) +
+  theme_minimal()
+
+# ------------------------------------------------------------
+# Add watermark
+# ------------------------------------------------------------
+
+p_blueberry_map_watermarked <- add_watermark_plot(
+  p_blueberry_map,
+  watermark_text = "NOT FOR PUBLICATION"
+)
+
+p_blueberry_map_watermarked
+
+# ------------------------------------------------------------
+# Export JPG
+# ------------------------------------------------------------
+
+ggsave(
+  filename = file.path(
+    output_dir,
+    paste0("ga_blueberry_county_choropleth_", timestamp, ".jpg")
+  ),
+  plot = p_blueberry_map_watermarked,
+  width = 10,
+  height = 7,
+  dpi = 300
+)
+
+# ------------------------------------------------------------
+# Export GeoJSON for Pete
+# ------------------------------------------------------------
+
+sf::st_write(
+  county_blueberry_map,
+  dsn = file.path(
+    output_dir,
+    "ga_blueberry_county_choropleth.geojson"
+  ),
+  driver = "GeoJSON",
+  delete_dsn = TRUE
+)
+
+```
+
