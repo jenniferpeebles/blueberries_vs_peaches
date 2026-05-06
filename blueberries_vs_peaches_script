@@ -87,6 +87,29 @@ todays_date <- gsub("^0", "", todays_date) %>% print()
 
 todays_date_in_sql_format <- format(Sys.Date(), '%Y-%m-%d') %>% print()
 
+output_dir <- "output"
+dir.create(output_dir, showWarnings = FALSE)
+
+timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+
+
+```
+
+
+```{r helper_functions, eval = TRUE, echo = FALSE, include = FALSE}
+
+add_watermark_plot <- function(p, watermark_text = "NOT FOR PUBLICATION") {
+  cowplot::ggdraw(p) +
+    cowplot::draw_label(
+      watermark_text,
+      x = 0.5,
+      y = 0.5,
+      angle = 30,
+      size = 32,
+      alpha = 0.18,
+      fontface = "bold"
+    )
+}
 
 ```
 
@@ -147,37 +170,37 @@ blueberries_raw <- pull_crop_production("BLUEBERRIES")
 # Filter to the main annual state production series
 # ------------------------------------------------------------
 
-peaches <- peaches_raw |>
-  filter(
-    str_detect(short_desc, "PEACHES"),
-    str_detect(short_desc, "UTILIZED"),
-    unit_desc == "TONS"
-  ) |>
-  select(
-    year,
-    state_name,
-    state_alpha,
-    commodity,
-    short_desc,
-    production = value_num,
-    unit_desc
-  )
-
-blueberries <- blueberries_raw |>
-  filter(
-    str_detect(short_desc, "BLUEBERRIES, TAME"),
-    str_detect(short_desc, "UTILIZED"),
-    unit_desc == "LB"
-  ) |>
-  select(
-    year,
-    state_name,
-    state_alpha,
-    commodity,
-    short_desc,
-    production = value_num,
-    unit_desc
-  )
+# peaches <- peaches_raw |>
+#   filter(
+#     str_detect(short_desc, "PEACHES"),
+#     str_detect(short_desc, "UTILIZED"),
+#     unit_desc == "TONS"
+#   ) |>
+#   select(
+#     year,
+#     state_name,
+#     state_alpha,
+#     commodity,
+#     short_desc,
+#     production = value_num,
+#     unit_desc
+#   )
+# 
+# blueberries <- blueberries_raw |>
+#   filter(
+#     str_detect(short_desc, "BLUEBERRIES, TAME"),
+#     str_detect(short_desc, "UTILIZED"),
+#     unit_desc == "LB"
+#   ) |>
+#   select(
+#     year,
+#     state_name,
+#     state_alpha,
+#     commodity,
+#     short_desc,
+#     production = value_num,
+#     unit_desc
+#   )
 
 # ------------------------------------------------------------
 # Look at available series before choosing final one
@@ -227,46 +250,18 @@ blueberries <- blueberries_raw |>
     unit_desc
   )
 
-rank_states <- function(df) {
-  df |>
-    group_by(year) |>
-    mutate(
-      rank = min_rank(desc(production)),
-      national_total = sum(production, na.rm = TRUE),
-      pct_of_us = production / national_total
-    ) |>
-    ungroup()
-}
-
-peach_ranked <- rank_states(peaches)
-blueberry_ranked <- rank_states(blueberries)
-
-ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
-  filter(state_alpha == "GA") |>
-  arrange(commodity, year)
-
-ga_summary |>
-  select(year, commodity, production, unit_desc, rank, pct_of_us) |>
-  mutate(
-    production_fmt = comma(production),
-    pct_of_us = percent(pct_of_us, accuracy = 0.1)
-  )
+# rank_states <- function(df) {
+#   df |>
+#     group_by(year) |>
+#     mutate(
+#       rank = min_rank(desc(production)),
+#       national_total = sum(production, na.rm = TRUE),
+#       pct_of_us = production / national_total
+#     ) |>
+#     ungroup()
+# }
 
 
-latest_year <- max(c(peach_ranked$year, blueberry_ranked$year), na.rm = TRUE)
-
-latest_peaches <- peach_ranked |>
-  filter(year == max(year, na.rm = TRUE)) |>
-  arrange(rank) |>
-  select(rank, state_name, production, unit_desc, pct_of_us)
-
-latest_blueberries <- blueberry_ranked |>
-  filter(year == max(year, na.rm = TRUE)) |>
-  arrange(rank) |>
-  select(rank, state_name, production, unit_desc, pct_of_us)
-
-latest_peaches
-latest_blueberries
 
 ```
 
@@ -340,24 +335,43 @@ ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
 
 ga_summary
 
+
+####
+####
+####
+####
+peach_ranked <- rank_states(peaches)
+blueberry_ranked <- rank_states(blueberries)
+
+ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
+  filter(state_alpha == "GA") |>
+  arrange(commodity, year)
+
+ga_summary |>
+  select(year, commodity, production, unit_desc, rank, pct_of_us) |>
+  mutate(
+    production_fmt = comma(production),
+    pct_of_us = percent(pct_of_us, accuracy = 0.1)
+  )
+
+
+latest_year <- max(c(peach_ranked$year, blueberry_ranked$year), na.rm = TRUE)
+
+latest_peaches <- peach_ranked |>
+  filter(year == max(year, na.rm = TRUE)) |>
+  arrange(rank) |>
+  select(rank, state_name, production, unit_desc, pct_of_us)
+
+latest_blueberries <- blueberry_ranked |>
+  filter(year == max(year, na.rm = TRUE)) |>
+  arrange(rank) |>
+  select(rank, state_name, production, unit_desc, pct_of_us)
+
+latest_peaches
+latest_blueberries
+
 ```
 
-```{r watermark_helper, eval = TRUE, echo = FALSE, include = FALSE}
-
-add_watermark_plot <- function(p, watermark_text = "NOT FOR PUBLICATION") {
-  cowplot::ggdraw(p) +
-    cowplot::draw_label(
-      watermark_text,
-      x = 0.5,
-      y = 0.5,
-      angle = 30,
-      size = 32,
-      alpha = 0.18,
-      fontface = "bold"
-    )
-}
-
-```
 
 ```{r chart_natl_ranking, eval = TRUE, echo = FALSE, include = FALSE}
 
@@ -414,11 +428,6 @@ p_production_watermarked
 
 ```{r export_chart_jpgs, eval = TRUE, echo = FALSE, include = FALSE}
 
-
-output_dir <- "output"
-dir.create(output_dir, showWarnings = FALSE)
-
-timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
 
 ggsave(
   filename = file.path(output_dir, paste0("ga_peach_blueberry_rank_", timestamp, ".jpg")),
@@ -535,7 +544,7 @@ county_blueberry_map <- ga_counties |>
   )
 
 sort(unique(ga_blueberry_counties$county_name))
-sort(unique(ga_counties$NAME))
+sort(unique(str_to_upper(ga_counties$NAME)))
 
 glimpse(county_blueberry_map)
 # 
