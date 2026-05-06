@@ -1,0 +1,299 @@
+---
+title: "Blueberries vs peaches"
+author: "Jennifer Peebles-The Atlanta Journal-Constitution"
+date: "`r format(Sys.Date(), '%b. %d, %Y')`"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+urlcolor: blue
+---
+
+```{r setup, eval = TRUE, echo = FALSE, include = FALSE}
+
+#### reminder that all geojson exports for Pete's DataWrapper maps must be in projection WGS 84 and NOT web mercator. 
+
+
+# Load some packages
+packages_core <- c("tidyverse", "janitor", "knitr", "magrittr", "lubridate", "kableExtra")
+# If you're going to be working with census data ...
+packages_census <- c("tidycensus", "tigris")
+packages_map <- c("sf", "rnaturalearth", "sp")
+# If you need to append packages_census or packages_map to the core list, use append ...
+
+#my_package_list <- append(packages, packages_census, packages_map)
+lapply(packages_core, function(pkg) {
+  if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
+  library(pkg, character.only = TRUE)
+})
+
+if (!pkgbuild::has_rtools()) {
+  message("Rtools is not installed or not found in PATH.")
+  message("Visit https://cran.r-project.org/bin/windows/Rtools/ to download the correct version.")
+} else {
+  message("Rtools is installed and ready.")
+}
+
+# Settings
+# Preferred options
+options(digits = 3, 
+        scipen = 999, 
+        stringsAsFactors = FALSE,
+        width = 80
+)
+
+
+knitr::opts_chunk$set(
+  echo = TRUE, 
+  warning = FALSE, 
+  message = FALSE, 
+  results = "markup",
+  fig.align = "center",
+  fig.width = 6,
+  fig.height = 4,
+  inline = function(x) prettyNum(x, big.mark = ",")
+)
+
+
+```
+
+```{r get_ready, eval = TRUE, echo = FALSE, include = FALSE}
+
+# If you want to clear out all the variables in your R workspace, I like to do this, you don't have to
+# rm(list = ls(all.names = TRUE))
+
+# Show my working directory
+getwd()
+
+# Create function that can take a pasted-in file path and turn all the backslashes around the proper way for R
+replace_backslashes <- function(text) {
+  gsub("\\\\", "/", text)
+}
+
+# Be sure to include double backslashes in your original file path or this won't work
+input_string <- "C:\\Users\\jpeebles\\OneDrive - Cox Enterprise, Inc\\repos\\blueberries_vs_peaches_production"
+output_string <- replace_backslashes(input_string)
+
+print(input_string)
+print(output_string)
+
+# This is just to take a look at what's going in and coming out
+cat("Original:", input_string, "\n")
+cat("Modified:", output_string, "\n")
+
+
+base_wd <- output_string
+setwd(base_wd)
+if (getwd() != base_wd) stop("Whoa, partner! Your working directory is not set correctly!")
+
+# Set today's date
+todays_date <- format(Sys.Date(), '%d %B, %Y') %>% print()
+
+todays_date <- gsub("^0", "", todays_date) %>% print()
+
+todays_date_in_sql_format <- format(Sys.Date(), '%Y-%m-%d') %>% print()
+
+
+```
+
+```{r pull_in_data, eval = TRUE, echo = FALSE, include = FALSE}
+# ============================================================
+# USDA NASS Quick Stats: peaches + blueberries by state/year
+# Jennifer Peebles / AJC
+# ============================================================
+
+library(tidyverse)
+library(janitor)
+library(rnassqs)
+library(scales)
+library(usethis)
+library(readr)
+
+# install.packages("usethis")
+# install.packages("rnassqs") if needed
+
+# Option 1: put your key in .Renviron as:
+# NASS_API_KEY="your_key_here"
+nassqs_auth(key = Sys.getenv("NASS_API_KEY"))
+# ------------------------------------------------------------
+# Helper: clean NASS value column
+# ------------------------------------------------------------
+
+clean_nass_value <- function(x) {
+  if (is.numeric(x)) {
+    return(x)
+  }
+  
+  readr::parse_number(as.character(x))
+}
+
+# sanity check
+exists("clean_nass_value")
+clean_nass_value("1,234")
+# 
+
+
+# ------------------------------------------------------------
+# Pull production data
+# ------------------------------------------------------------
+
+pull_crop_production <- function(commodity, start_year = 2000, end_year = 2024) {
+
+  nassqs(
+    sector_desc = "CROPS",
+    group_desc = "FRUIT & TREE NUTS",
+    commodity_desc = commodity,
+    agg_level_desc = "STATE",
+    statisticcat_desc = "PRODUCTION",
+    year__GE = start_year,
+    year__LE = end_year,
+    format = "json"
+  ) |>
+    clean_names() |>
+    mutate(
+      value_num = clean_nass_value(value),
+      commodity = commodity
+    )
+}
+```
+```{r chunk_2, eval = TRUE, echo = FALSE, include = FALSE}
+
+peaches_raw <- pull_crop_production("PEACHES")
+blueberries_raw <- pull_crop_production("BLUEBERRIES")
+
+# ------------------------------------------------------------
+# Look at available series before choosing final one
+# This is important because NASS has fresh/processing/utilized/etc.
+# ------------------------------------------------------------
+
+peaches_raw |>
+  count(short_desc, unit_desc, class_desc, prodn_practice_desc, sort = TRUE)
+
+blueberries_raw |>
+  count(short_desc, unit_desc, class_desc, prodn_practice_desc, sort = TRUE)
+ 
+
+#############
+
+# ------------------------------------------------------------
+# Filter to the main annual state production series
+# ------------------------------------------------------------
+
+peaches <- peaches_raw |>
+  filter(
+    str_detect(short_desc, "PEACHES"),
+    str_detect(short_desc, "UTILIZED"),
+    unit_desc == "TONS"
+  ) |>
+  select(
+    year,
+    state_name,
+    state_alpha,
+    commodity,
+    short_desc,
+    production = value_num,
+    unit_desc
+  )
+
+blueberries <- blueberries_raw |>
+  filter(
+    str_detect(short_desc, "BLUEBERRIES"),
+    str_detect(short_desc, "TAME"),
+    str_detect(short_desc, "UTILIZED"),
+    unit_desc == "LB"
+  ) |>
+  select(
+    year,
+    state_name,
+    state_alpha,
+    commodity,
+    short_desc,
+    production = value_num,
+    unit_desc
+  )
+
+
+rank_states <- function(df) {
+  df |>
+    group_by(year) |>
+    mutate(
+      rank = min_rank(desc(production)),
+      national_total = sum(production, na.rm = TRUE),
+      pct_of_us = production / national_total
+    ) |>
+    ungroup()
+}
+
+peach_ranked <- rank_states(peaches)
+blueberry_ranked <- rank_states(blueberries)
+
+ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
+  filter(state_alpha == "GA") |>
+  arrange(commodity, year)
+
+ga_summary |>
+  select(year, commodity, production, unit_desc, rank, pct_of_us) |>
+  mutate(
+    production_fmt = comma(production),
+    pct_of_us = percent(pct_of_us, accuracy = 0.1)
+  )
+
+
+
+###
+###
+latest_year <- max(c(peach_ranked$year, blueberry_ranked$year), na.rm = TRUE)
+
+latest_peaches <- peach_ranked |>
+  filter(year == max(year, na.rm = TRUE)) |>
+  arrange(rank) |>
+  select(rank, state_name, production, unit_desc, pct_of_us)
+
+latest_blueberries <- blueberry_ranked |>
+  filter(year == max(year, na.rm = TRUE)) |>
+  arrange(rank) |>
+  select(rank, state_name, production, unit_desc, pct_of_us)
+
+latest_peaches
+latest_blueberries
+
+
+###########
+
+output_dir <- "output"
+dir.create(output_dir, showWarnings = FALSE)
+
+write_csv(
+  peach_ranked,
+  file.path(output_dir, "usda_nass_peach_production_by_state_year.csv")
+)
+
+write_csv(
+  blueberry_ranked,
+  file.path(output_dir, "usda_nass_blueberry_production_by_state_year.csv")
+)
+
+write_csv(
+  ga_summary,
+  file.path(output_dir, "georgia_peach_blueberry_rank_summary.csv")
+)
+
+## chart starter
+
+ga_summary |>
+  ggplot(aes(x = year, y = rank, color = commodity)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  scale_y_reverse(breaks = 1:10) +
+  labs(
+    title = "Georgia's national rank in peach and blueberry production",
+    subtitle = "Lower rank number means higher national production rank",
+    x = NULL,
+    y = "National rank",
+    color = NULL,
+    caption = "Source: USDA NASS Quick Stats | Analysis: Jennifer Peebles/AJC"
+  ) +
+  theme_minimal()
+
+```
