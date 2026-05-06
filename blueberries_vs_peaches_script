@@ -115,9 +115,9 @@ clean_nass_value <- function(x) {
 exists("clean_nass_value")
 clean_nass_value("1,234")
 
-# ------------------------------------------------------------
-# Pull production data
-# ------------------------------------------------------------
+```
+
+```{r pull_production_data, eval = TRUE, echo = FALSE, include = FALSE}
 
 pull_crop_production <- function(commodity, start_year = 2000, end_year = 2024) {
 
@@ -137,11 +137,11 @@ pull_crop_production <- function(commodity, start_year = 2000, end_year = 2024) 
       commodity = commodity
     )
 }
-```
-```{r chunk_2, eval = TRUE, echo = FALSE, include = FALSE}
 
 peaches_raw <- pull_crop_production("PEACHES")
 blueberries_raw <- pull_crop_production("BLUEBERRIES")
+```
+```{r filter_to_annual_prod_series, eval = TRUE, echo = FALSE, include = FALSE}
 
 # ------------------------------------------------------------
 # Filter to the main annual state production series
@@ -268,6 +268,11 @@ latest_blueberries <- blueberry_ranked |>
 latest_peaches
 latest_blueberries
 
+```
+
+```{r write_out_stats, eval = TRUE, echo = FALSE, include = FALSE}
+
+
 output_dir <- "output"
 dir.create(output_dir, showWarnings = FALSE)
 
@@ -286,7 +291,8 @@ write_csv(
   file.path(output_dir, "georgia_peach_blueberry_rank_summary.csv")
 )
 
-## chart starter
+```
+```{r chart_starter, eval = TRUE, echo = FALSE, include = FALSE}
 
 ga_summary |>
   ggplot(aes(x = year, y = rank, color = commodity)) +
@@ -294,18 +300,18 @@ ga_summary |>
   geom_point(size = 2) +
   scale_y_reverse(breaks = 1:10) +
   labs(
-    title = "Georgia's national rank in peach and blueberry production",
-    subtitle = "Lower rank number means higher national production rank",
+    title = "Georgia: The Peach State or the Blueberry State?",
+    subtitle = "Georgia hasn't been America's top producer of peaches in many years now, but it's one of the nation's top three in blueberries, federal data shows.",
     x = NULL,
-    y = "National rank",
+    y = "National rank among states",
     color = NULL,
-    caption = "Source: USDA NASS Quick Stats | Analysis: Jennifer Peebles/AJC"
+    caption = "Source: U.S. Department of Agriculture National Agricultural Statistics Service\nAnalysis & chart: Jennifer Peebles & Pete Corson/AJC"
   ) +
   theme_minimal()
 
-# ------------------------------------------------------------
-# Rank states by year
-# ------------------------------------------------------------
+```
+
+```{r rank_states_by_year, eval = TRUE, echo = FALSE, include = FALSE}
 
 rank_states <- function(df) {
   df |>
@@ -334,9 +340,9 @@ ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
 
 ga_summary
 
-# ------------------------------------------------------------
-# Watermark helper
-# ------------------------------------------------------------
+```
+
+```{r watermark_helper, eval = TRUE, echo = FALSE, include = FALSE}
 
 add_watermark_plot <- function(p, watermark_text = "NOT FOR PUBLICATION") {
   cowplot::ggdraw(p) +
@@ -351,9 +357,9 @@ add_watermark_plot <- function(p, watermark_text = "NOT FOR PUBLICATION") {
     )
 }
 
-# ------------------------------------------------------------
-# Chart 1: Georgia national rank
-# ------------------------------------------------------------
+```
+
+```{r chart_natl_ranking, eval = TRUE, echo = FALSE, include = FALSE}
 
 p_rank <- ga_summary |>
   ggplot(aes(x = year, y = rank, color = commodity_label)) +
@@ -361,21 +367,21 @@ p_rank <- ga_summary |>
   geom_point(size = 2) +
   scale_y_reverse(breaks = 1:10) +
   labs(
-    title = "Georgia ranks much higher nationally in blueberries than peaches",
-    subtitle = "Annual state ranking by USDA NASS utilized production",
+  title = "Georgia: The Peach State or the Blueberry State?",
+    subtitle = "Georgia hasn't been America's top producer of peaches in many years now, but it's one of the nation's top three in blueberries, federal data shows.",
     x = NULL,
-    y = "National rank",
+    y = "National rank among states",
     color = NULL,
-    caption = "Source: USDA NASS Quick Stats | Analysis: Jennifer Peebles/AJC"
+    caption = "Source: U.S. Department of Agriculture National Agricultural Statistics Service\nAnalysis & chart: Jennifer Peebles & Pete Corson/AJC"
   ) +
   theme_minimal()
 
 p_rank_watermarked <- add_watermark_plot(p_rank)
 p_rank_watermarked
 
-# ------------------------------------------------------------
-# Chart 2: Georgia production volume
-# ------------------------------------------------------------
+```
+
+```{r ga_production_chart, eval = TRUE, echo = FALSE, include = FALSE}
 
 ga_production_lbs <- ga_summary |>
   mutate(
@@ -392,21 +398,22 @@ p_production <- ga_production_lbs |>
   geom_point(size = 2) +
   scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
   labs(
-    title = "Georgia now produces far more blueberries than peaches",
-    subtitle = "Peach production converted from tons to pounds for comparison",
+    title = "Berries rise over peaches",
+    subtitle = "Georgia's blueberry harvest far outstrips its peach output these days, federal data shows.\nPeach production stats have been converted from tons to pounds for comparison.",
     x = NULL,
     y = "Production, in pounds",
     color = NULL,
-    caption = "Source: USDA NASS Quick Stats | Analysis: Jennifer Peebles/AJC"
+    caption = "Source: U.S. Department of Agriculture National Agricultural Statistics Service\nAnalysis & chart: Jennifer Peebles & Pete Corson/AJC"
   ) +
   theme_minimal()
 
 p_production_watermarked <- add_watermark_plot(p_production)
 p_production_watermarked
 
-# ------------------------------------------------------------
-# Export chart JPGs
-# ------------------------------------------------------------
+```
+
+```{r export_chart_jpgs, eval = TRUE, echo = FALSE, include = FALSE}
+
 
 output_dir <- "output"
 dir.create(output_dir, showWarnings = FALSE)
@@ -455,8 +462,9 @@ ga_blueberry_counties_probe |>
     unit_desc,
     short_desc,
     sort = TRUE
-  ) |>
-  View()
+  )
+  # |>
+  # View()
 
 ga_blueberry_counties_raw <- nassqs(
   sector_desc = "CROPS",
@@ -533,9 +541,10 @@ glimpse(county_blueberry_map)
 # 
 # View(county_blueberry_map)
 
-# ------------------------------------------------------------
-# Build choropleth
-# ------------------------------------------------------------
+```
+
+```{r build_county_choropleth, eval = TRUE, echo = FALSE, include = FALSE}
+
 
 p_blueberry_map <- ggplot(county_blueberry_map) +
   geom_sf(aes(fill = blueberry_acres),
@@ -572,9 +581,9 @@ p_blueberry_map_watermarked <- add_watermark_plot(
 
 p_blueberry_map_watermarked
 
-# ------------------------------------------------------------
-# Export JPG
-# ------------------------------------------------------------
+```
+
+```{r export_choropleth, eval = TRUE, echo = FALSE, include = FALSE}
 
 ggsave(
   filename = file.path(
@@ -587,9 +596,10 @@ ggsave(
   dpi = 300
 )
 
-# ------------------------------------------------------------
-# Export GeoJSON for Pete
-# ------------------------------------------------------------
+```
+
+```{r export_geojson_choropleth, eval = TRUE, echo = FALSE, include = FALSE}
+
 
 sf::st_write(
   county_blueberry_map,
