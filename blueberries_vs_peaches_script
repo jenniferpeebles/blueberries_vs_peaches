@@ -265,6 +265,74 @@ blueberries <- blueberries_raw |>
 
 ```
 
+```{r rank_states_by_year, eval = TRUE, echo = FALSE, include = FALSE}
+
+rank_states <- function(df) {
+  df |>
+    group_by(year) |>
+    mutate(
+      rank = min_rank(desc(production)),
+      national_total = sum(production, na.rm = TRUE),
+      pct_of_us = production / national_total
+    ) |>
+    ungroup()
+}
+
+# peach_ranked <- rank_states(peaches)
+# blueberry_ranked <- rank_states(blueberries)
+
+# ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
+#   filter(state_alpha == "GA") |>
+#   mutate(
+#     commodity_label = case_when(
+#       commodity == "PEACHES" ~ "Peaches",
+#       commodity == "BLUEBERRIES" ~ "Blueberries",
+#       TRUE ~ commodity
+#     )
+#   ) |>
+#   arrange(commodity_label, year)
+
+# ga_summary
+
+####
+####
+peach_ranked <- rank_states(peaches)
+blueberry_ranked <- rank_states(blueberries)
+
+ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
+  filter(state_alpha == "GA") |>
+  mutate(
+    commodity_label = case_when(
+      commodity == "PEACHES" ~ "Peaches",
+      commodity == "BLUEBERRIES" ~ "Blueberries",
+      TRUE ~ commodity
+    )
+  ) |>
+  arrange(commodity_label, year)
+
+ga_summary |>
+  select(year, commodity_label, production, unit_desc, rank, pct_of_us) |>
+  mutate(
+    production_fmt = comma(production),
+    pct_of_us = percent(pct_of_us, accuracy = 0.1)
+  )
+
+latest_year <- max(c(peach_ranked$year, blueberry_ranked$year), na.rm = TRUE)
+
+latest_peaches <- peach_ranked |>
+  filter(year == max(year, na.rm = TRUE)) |>
+  arrange(rank) |>
+  select(rank, state_name, production, unit_desc, pct_of_us)
+
+latest_blueberries <- blueberry_ranked |>
+  filter(year == max(year, na.rm = TRUE)) |>
+  arrange(rank) |>
+  select(rank, state_name, production, unit_desc, pct_of_us)
+
+latest_peaches
+latest_blueberries
+
+```
 ```{r write_out_stats, eval = TRUE, echo = FALSE, include = FALSE}
 
 
@@ -287,91 +355,6 @@ write_csv(
 )
 
 ```
-```{r chart_starter, eval = TRUE, echo = FALSE, include = FALSE}
-
-ga_summary |>
-  ggplot(aes(x = year, y = rank, color = commodity)) +
-  geom_line(linewidth = 1.2) +
-  geom_point(size = 2) +
-  scale_y_reverse(breaks = 1:10) +
-  labs(
-    title = "Georgia: The Peach State or the Blueberry State?",
-    subtitle = "Georgia hasn't been America's top producer of peaches in many years now, but it's one of the nation's top three in blueberries, federal data shows.",
-    x = NULL,
-    y = "National rank among states",
-    color = NULL,
-    caption = "Source: U.S. Department of Agriculture National Agricultural Statistics Service\nAnalysis & chart: Jennifer Peebles & Pete Corson/AJC"
-  ) +
-  theme_minimal()
-
-```
-
-```{r rank_states_by_year, eval = TRUE, echo = FALSE, include = FALSE}
-
-rank_states <- function(df) {
-  df |>
-    group_by(year) |>
-    mutate(
-      rank = min_rank(desc(production)),
-      national_total = sum(production, na.rm = TRUE),
-      pct_of_us = production / national_total
-    ) |>
-    ungroup()
-}
-
-peach_ranked <- rank_states(peaches)
-blueberry_ranked <- rank_states(blueberries)
-
-ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
-  filter(state_alpha == "GA") |>
-  mutate(
-    commodity_label = case_when(
-      commodity == "PEACHES" ~ "Peaches",
-      commodity == "BLUEBERRIES" ~ "Blueberries",
-      TRUE ~ commodity
-    )
-  ) |>
-  arrange(commodity_label, year)
-
-ga_summary
-
-
-####
-####
-####
-####
-peach_ranked <- rank_states(peaches)
-blueberry_ranked <- rank_states(blueberries)
-
-ga_summary <- bind_rows(peach_ranked, blueberry_ranked) |>
-  filter(state_alpha == "GA") |>
-  arrange(commodity, year)
-
-ga_summary |>
-  select(year, commodity, production, unit_desc, rank, pct_of_us) |>
-  mutate(
-    production_fmt = comma(production),
-    pct_of_us = percent(pct_of_us, accuracy = 0.1)
-  )
-
-
-latest_year <- max(c(peach_ranked$year, blueberry_ranked$year), na.rm = TRUE)
-
-latest_peaches <- peach_ranked |>
-  filter(year == max(year, na.rm = TRUE)) |>
-  arrange(rank) |>
-  select(rank, state_name, production, unit_desc, pct_of_us)
-
-latest_blueberries <- blueberry_ranked |>
-  filter(year == max(year, na.rm = TRUE)) |>
-  arrange(rank) |>
-  select(rank, state_name, production, unit_desc, pct_of_us)
-
-latest_peaches
-latest_blueberries
-
-```
-
 
 ```{r chart_natl_ranking, eval = TRUE, echo = FALSE, include = FALSE}
 
@@ -382,7 +365,7 @@ p_rank <- ga_summary |>
   scale_y_reverse(breaks = 1:10) +
   labs(
   title = "Georgia: The Peach State or the Blueberry State?",
-    subtitle = "Georgia hasn't been America's top producer of peaches in many years now, but it's one of the nation's top three in blueberries, federal data shows.",
+    subtitle = "Georgia hasn't been America's top producer of peaches in many years now,\nbut it's one of the nation's top three in blueberries, federal data shows.",
     x = NULL,
     y = "National rank among states",
     color = NULL,
@@ -566,7 +549,7 @@ p_blueberry_map <- ggplot(county_blueberry_map) +
   ) +
   labs(
     title = "South Georgia is blueberry country",
-    subtitle = "A swath of counties have made Georgia one of the nation's\nbiggest blueberry-producing states.",
+    subtitle = "A swath of counties have made Georgia one of the nation's\ntop blueberry-producing states.",
     fill = "Acres",
     caption = "Source: U.S. Department of Agriculture National\n Agricultural Statistics Service 2022 Census of Agriculture\n Analysis & map: Jennifer Peebles\n(and probably Pete Corson)/AJC"
   ) +
