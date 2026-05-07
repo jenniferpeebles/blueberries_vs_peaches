@@ -170,15 +170,21 @@ peaches_raw |>
 
 blueberries_raw |>
   count(short_desc, unit_desc, class_desc, prodn_practice_desc, sort = TRUE)
+
+peaches_raw |>
+  count(short_desc, unit_desc, prodn_practice_desc, domain_desc, sort = TRUE) |>
+  arrange(short_desc) |>
+  View()
  
 
 # Filter to the main annual state production series
 
 peaches <- peaches_raw |>
   filter(
-    str_detect(short_desc, "PEACHES"),
-    str_detect(short_desc, "UTILIZED"),
-    unit_desc == "TONS"
+    short_desc == "PEACHES, UTILIZED - PRODUCTION, MEASURED IN TONS",
+    unit_desc == "TONS",
+    prodn_practice_desc == "ALL PRODUCTION PRACTICES",
+    domain_desc == "TOTAL"
   ) |>
   select(
     year,
@@ -188,7 +194,10 @@ peaches <- peaches_raw |>
     short_desc,
     production = value_num,
     unit_desc
-  )
+  ) |>
+  filter(!is.na(production))
+
+
 
 blueberries <- blueberries_raw |>
   filter(
@@ -291,7 +300,7 @@ p_rank <- ga_summary |>
   scale_y_reverse(breaks = 1:10) +
   labs(
   title = "Georgia: The Peach State or the Blueberry State?",
-    subtitle = "Georgia hasn't been America's top producer of peaches in many years now,\nbut it's one of the nation's top three in blueberries, federal data shows. Numbers\nhere do not include wild blueberries that grow in some states such as Maine.",
+    subtitle = "Georgia hasn't been America's top producer of peaches in many years now.\nMeanwhile, its growing blueberry harvests have pushed its status to hold\nthe same No. 3 rank among the states in blueberries as in peaches, federal data\nshow. Numbers here do not include wild blueberries that grow in some states\nsuch as Maine.",
     x = NULL,
     y = "National rank among states",
     color = NULL,
@@ -301,6 +310,8 @@ p_rank <- ga_summary |>
 
 p_rank_watermarked <- add_watermark_plot(p_rank)
 p_rank_watermarked
+
+
 
 ```
 
@@ -335,6 +346,31 @@ p_production_watermarked
 
 ```
 
+```{r export_datawrapper_production_chart_data, eval = TRUE, echo = TRUE, include = TRUE}
+
+# Export the exact data behind the Georgia peaches vs. blueberries production chart
+# Peaches have been converted from tons to pounds for apples-to-apples comparison.
+
+ga_production_datawrapper <- ga_production_lbs |>
+  select(
+    year,
+    commodity = commodity_label,
+    production_original_units = production,
+    original_unit = unit_desc,
+    production_lbs,
+    national_rank = rank,
+    pct_of_us
+  ) |>
+  arrange(commodity, year)
+
+write_csv(
+  ga_production_datawrapper,
+  file.path(output_dir, "datawrapper_georgia_peach_blueberry_production_lbs.csv")
+)
+
+ga_production_datawrapper
+
+```
 ```{r export_chart_jpgs, eval = TRUE, echo = FALSE, include = FALSE}
 
 
@@ -456,7 +492,7 @@ p_blueberry_map <- ggplot(county_blueberry_map) +
     title = "South Georgia is blueberry country",
     subtitle = "A swath of counties have made Georgia one of the nation's\ntop blueberry-producing states.",
     fill = "Acres",
-    caption = "Source: U.S. Department of Agriculture National\n Agricultural Statistics Service 2022 Census of Agriculture\n Analysis & map: Jennifer Peebles\n(and probably Pete Corson)/AJC"
+    caption = "Source: U.S. Department of Agriculture National\n Agricultural Statistics Service 2022 Census of Agriculture\n Analysis & map: Jennifer Peebles and Pete Corson)/AJC"
   ) +
   theme_minimal() +
   theme(
@@ -509,3 +545,289 @@ sf::st_write(
 
 ```
 
+```{r ga_peach_blueberry_acreage, eval = TRUE, echo = TRUE, include = TRUE}
+
+# ------------------------------------------------------------
+# Georgia peach vs. blueberry acreage
+# ------------------------------------------------------------
+
+pull_crop_acreage <- function(commodity, start_year = 2000, end_year = 2024) {
+  
+  nassqs(
+    sector_desc = "CROPS",
+    group_desc = "FRUIT & TREE NUTS",
+    commodity_desc = commodity,
+    agg_level_desc = "STATE",
+    state_alpha = "GA",
+    statisticcat_desc = "AREA BEARING",
+    unit_desc = "ACRES",
+    year__GE = start_year,
+    year__LE = end_year,
+    format = "json"
+  ) |>
+    clean_names() |>
+    mutate(
+      value_num = clean_nass_value(value),
+      commodity = commodity
+    )
+}
+
+ga_peach_acres_raw <- pull_crop_acreage("PEACHES")
+ga_blueberry_acres_raw <- pull_crop_acreage("BLUEBERRIES")
+
+# Inspect USDA's wording/options
+ga_peach_acres_raw |>
+  count(short_desc, class_desc, statisticcat_desc, unit_desc, sort = TRUE)
+
+ga_blueberry_acres_raw |>
+  count(short_desc, class_desc, statisticcat_desc, unit_desc, sort = TRUE)
+
+ga_acres <- bind_rows(
+  ga_peach_acres_raw,
+  ga_blueberry_acres_raw
+) |>
+  filter(
+    short_desc %in% c(
+      "PEACHES - ACRES BEARING",
+      "BLUEBERRIES, TAME - ACRES BEARING"
+    )
+  ) |>
+  group_by(year, commodity) |>
+  summarize(
+    acres = max(value_num, na.rm = TRUE),
+    .groups = "drop"
+  ) |>
+  mutate(
+    commodity_label = case_when(
+      commodity == "PEACHES" ~ "Peaches",
+      commodity == "BLUEBERRIES" ~ "Blueberries",
+      TRUE ~ commodity
+    )
+  ) |>
+  arrange(commodity_label, year)
+
+ga_acres
+
+glimpse(ga_acres)
+
+ga_acres |>
+  count(commodity_label, year,acres, sort = TRUE) |>
+  arrange(commodity_label, year)
+
+print(ga_acres)
+
+write_csv(
+  ga_acres,
+  file.path(output_dir, "georgia_peach_blueberry_bearing_acres_by_year.csv")
+)
+
+common_acre_years <- ga_acres |>
+  count(year) |>
+  filter(n == 2) |>
+  pull(year)
+
+ga_acres_common_years <- ga_acres |>
+  filter(year %in% common_acre_years)
+
+p_acres <- ga_acres_common_years |>
+  ggplot(aes(x = factor(year), y = acres, fill = commodity_label)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = scales::comma) +
+  labs(
+    title = "Georgia farmers plant more blueberry acreage than peach acreage",
+    subtitle = "Fruit-bearing acres in years where the U.S. Department of Agriculture reports\ndata on both crops. The next such year wil be 2027, when the next federal\nCensus of Agriculture is compiled.",
+    x = NULL,
+    y = "Bearing acres",
+    fill = NULL,
+    caption = "Source: USDA NASS Quick Stats / Census of Agriculture\nAnalysis & chart: Jennifer Peebles & Pete Corson/AJC"
+  ) +
+  theme_minimal()
+
+# p_acres <- ga_acres |>
+#   ggplot(aes(x = year, y = acres, color = commodity_label)) +
+#   geom_line(linewidth = 1.2) +
+#   geom_point(size = 2) +
+#   scale_y_continuous(labels = scales::comma) +
+#   labs(
+#     title = "Georgia has far more blueberry acreage than peach acreage",
+#     subtitle = "Bearing acres reported by USDA NASS",
+#     x = NULL,
+#     y = "Bearing acres",
+#     color = NULL,
+#     caption = "Source: U.S. Department of Agriculture National Agricultural Statistics Service\nAnalysis & chart: Jennifer Peebles & Pete Corson/AJC"
+#   ) +
+#   theme_minimal()
+
+p_acres_watermarked <- add_watermark_plot(p_acres)
+p_acres_watermarked
+
+ggsave(
+  filename = file.path(output_dir, paste0("ga_peach_blueberry_bearing_acres_", timestamp, ".jpg")),
+  plot = p_acres_watermarked,
+  width = 10,
+  height = 6,
+  dpi = 300
+)
+
+```
+
+```{r bump_charts_selected_states, eval = TRUE, echo = TRUE, include = TRUE}
+
+# ------------------------------------------------------------
+# Bump charts: selected states over time
+# ------------------------------------------------------------
+
+selected_states <- c("GA", "CA", "SC", "NJ", "WA", "OR")
+
+selected_peach_states <- c("GA", "CA", "SC", "NJ", "PA", "MI")
+
+selected_blueberry_states <- c("GA", "WA", "OR", "MI", "NJ", "CA")
+
+# ------------------------------------------------------------
+# Export filtered bump-chart datasets for Pete/DataWrapper
+# ------------------------------------------------------------
+
+peach_bump_datawrapper <- peach_ranked |>
+  filter(state_alpha %in% selected_peach_states) |>
+  mutate(
+    state_label = state_name,
+    crop = "Peaches"
+  ) |>
+  select(
+    year,
+    crop,
+    state_name = state_label,
+    state_alpha,
+    national_rank = rank,
+    production,
+    unit_desc,
+    national_total,
+    pct_of_us
+  ) |>
+  arrange(state_name, year)
+
+blueberry_bump_datawrapper <- blueberry_ranked |>
+  filter(state_alpha %in% selected_blueberry_states) |>
+  mutate(
+    state_label = state_name,
+    crop = "Blueberries"
+  ) |>
+  select(
+    year,
+    crop,
+    state_name = state_label,
+    state_alpha,
+    national_rank = rank,
+    production,
+    unit_desc,
+    national_total,
+    pct_of_us
+  ) |>
+  arrange(state_name, year)
+
+write_csv(
+  peach_bump_datawrapper,
+  file.path(output_dir, "datawrapper_peach_bump_chart_selected_states.csv")
+)
+
+write_csv(
+  blueberry_bump_datawrapper,
+  file.path(output_dir, "datawrapper_blueberry_bump_chart_selected_states.csv")
+)
+
+make_bump_chart_peach <- function(df, chart_title, chart_subtitle, filename_stub) {
+  
+  bump_df <- df |>
+    filter(state_alpha %in% selected_peach_states) |>
+    mutate(
+      state_label = state_name
+    )
+  
+  p <- bump_df |>
+    ggplot(aes(x = year, y = rank, color = state_label, group = state_label)) +
+    geom_line(linewidth = 1.2) +
+    geom_point(size = 2) +
+    scale_y_reverse(
+      breaks = 1:10,
+      limits = c(10, 1)
+    ) +
+    labs(
+      title = chart_title,
+      subtitle = chart_subtitle,
+      x = NULL,
+      y = "National rank",
+      color = NULL,
+      caption = "Source: U.S. Department of Agriculture National Agricultural Statistics Service\nAnalysis & chart: Jennifer Peebles & Pete Corson/AJC"
+    ) +
+    theme_minimal()
+  
+  p_watermarked <- add_watermark_plot(p)
+  
+  ggsave(
+    filename = file.path(output_dir, paste0(filename_stub, "_", timestamp, ".jpg")),
+    plot = p_watermarked,
+    width = 10,
+    height = 6,
+    dpi = 300
+  )
+  
+  return(p_watermarked)
+}
+
+p_peach_bump <- make_bump_chart_peach(
+  peach_ranked,
+  chart_title = "Georgia bested in peach production",
+  chart_subtitle = "Selected states' national rankings in peach production over time",
+  filename_stub = "selected_states_peach_rank_bump"
+)
+
+make_bump_chart_blueberry <- function(df, chart_title, chart_subtitle, filename_stub) {
+  
+  bump_df <- df |>
+    filter(state_alpha %in% selected_blueberry_states) |>
+    mutate(
+      state_label = state_name
+    )
+  
+  p <- bump_df |>
+    ggplot(aes(x = year, y = rank, color = state_label, group = state_label)) +
+    geom_line(linewidth = 1.2) +
+    geom_point(size = 2) +
+    scale_y_reverse(
+      breaks = 1:10,
+      limits = c(10, 1)
+    ) +
+    labs(
+      title = chart_title,
+      subtitle = chart_subtitle,
+      x = NULL,
+      y = "National rank",
+      color = NULL,
+      caption = "Source: U.S. Department of Agriculture National Agricultural Statistics Service\nAnalysis & chart: Jennifer Peebles & Pete Corson/AJC"
+    ) +
+    theme_minimal()
+  
+  p_watermarked <- add_watermark_plot(p)
+  
+  ggsave(
+    filename = file.path(output_dir, paste0(filename_stub, "_", timestamp, ".jpg")),
+    plot = p_watermarked,
+    width = 10,
+    height = 6,
+    dpi = 300
+  )
+  
+  return(p_watermarked)
+}
+
+p_blueberry_bump <- make_bump_chart_blueberry(
+  blueberry_ranked,
+  chart_title = "Georgia ascends into top tier for blueberries",
+  chart_subtitle = "Selected states' national rankings in tame (non-wild) blueberry production",
+  filename_stub = "selected_states_blueberry_rank_bump"
+)
+
+p_peach_bump
+p_blueberry_bump
+
+```
