@@ -7,6 +7,8 @@
 # Jennifer Peebles / AJC
 # ============================================================
 
+source("config.R")
+
 
 # ------------------------------------------------------------
 # Gather project metadata
@@ -107,7 +109,16 @@ readme_lines <- c(
   "",
   "## Running the project",
   "",
-  "Run scripts in numerical order or use a future run_all.R orchestrator.",
+  "Open the `.Rproj`, add `NASS_API_KEY` to `.Renviron`, then run `scripts/00_run_all.R` from the project root. The runner stops on the first failed stage and writes a log and CSV summary to `logs/`.",
+  "",
+  "If the raw downloads already exist, scripts 02 through 09 can be rerun without making another API request.",
+  "",
+  "## Peebles Pipeline pieces",
+  "",
+  "* `peeblestoolbox` supplies the chart and map themes, review watermark, plot saver, Georgia county boundaries, and WGS84 GeoJSON export.",
+  "* `docs/production_exclusions.csv` accounts for selected production records excluded because USDA values were missing or suppressed.",
+  "* County map QA distinguishes published values, missing or suppressed values, and counties with no USDA record. Gray does not mean zero.",
+  "* `docs/reporter_brief.md` is generated as a deterministic Mad-Lib from current outputs.",
   "",
   "## Caveats",
   "",
@@ -117,7 +128,9 @@ readme_lines <- c(
   "",
   "## Authorship",
   "",
-  "Jennifer Peebles / Atlanta Journal-Constitution"
+  "Jennifer Peebles / Atlanta Journal-Constitution",
+  "",
+  "Disclosure: Codex helped Jennifer refactor the pipeline and write this README. Jennifer remains responsible for the reporting, analysis, and publication decisions."
 )
 
 writeLines(readme_lines, "README.md")
@@ -125,4 +138,4 @@ writeLines(readme_lines, "README.md")
 cat("README.md generated successfully\n")
 
 sessionInfo()
-beepr::beep(2)
+if (interactive()) beepr::beep(2)

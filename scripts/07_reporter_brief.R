@@ -7,6 +7,8 @@
 # Jennifer Peebles / AJC
 # ============================================================
 
+source("config.R")
+
 # ------------------------------------------------------------
 # Read inputs
 # ------------------------------------------------------------
@@ -35,23 +37,35 @@ top_counties <- tryCatch({
   )
 }, error = function(e) NULL)
 
+county_data_status <- tryCatch({
+  readr::read_csv(
+    file.path(DOCS_DIR, "county_blueberry_data_status.csv"),
+    show_col_types = FALSE
+  )
+}, error = function(e) NULL)
+
 # ------------------------------------------------------------
 # Key statistics
 # ------------------------------------------------------------
 
-latest_year <- max(ga_summary$year, na.rm = TRUE)
-
 latest_peach <- ga_summary |>
-  filter(
-    year == latest_year,
-    commodity_label == "Peaches"
-  )
+  filter(commodity_label == "Peaches") |>
+  filter(year == max(year, na.rm = TRUE))
 
 latest_blueberry <- ga_summary |>
-  filter(
-    year == latest_year,
-    commodity_label == "Blueberries"
+  filter(commodity_label == "Blueberries") |>
+  filter(year == max(year, na.rm = TRUE))
+
+stopifnot(nrow(latest_peach) == 1, nrow(latest_blueberry) == 1)
+
+latest_year_note <- if (latest_peach$year == latest_blueberry$year) {
+  glue("Both crops' latest available production data are for {latest_peach$year}.")
+} else {
+  glue(
+    "Latest available years differ: peaches are {latest_peach$year}; ",
+    "blueberries are {latest_blueberry$year}. Do not present them as the same-year comparison."
   )
+}
 
 # ------------------------------------------------------------
 # Build markdown brief
@@ -64,10 +78,11 @@ brief_lines <- c(
   "",
   "## Top findings",
   "",
-  glue("* In {latest_year}, Georgia ranked No. {latest_peach$rank} nationally in peach production."),
-  glue("* In {latest_year}, Georgia ranked No. {latest_blueberry$rank} nationally in blueberry production."),
-  glue("* Georgia's share of U.S. peach production was {scales::percent(latest_peach$pct_of_us, accuracy = 0.1)}."),
-  glue("* Georgia's share of U.S. blueberry production was {scales::percent(latest_blueberry$pct_of_us, accuracy = 0.1)}."),
+  glue("* In {latest_peach$year}, Georgia ranked No. {latest_peach$rank} nationally in peach production."),
+  glue("* In {latest_blueberry$year}, Georgia ranked No. {latest_blueberry$rank} nationally in blueberry production."),
+  glue("* Georgia's share of U.S. peach production was {scales::number(latest_peach$percent_of_us, accuracy = 0.1, suffix = '%')}."),
+  glue("* Georgia's share of U.S. blueberry production was {scales::number(latest_blueberry$percent_of_us, accuracy = 0.1, suffix = '%')}."),
+  glue("* {latest_year_note}"),
   "",
   "## Acreage findings",
   ""
@@ -112,6 +127,22 @@ if (!is.null(top_counties)) {
   }
 }
 
+if (!is.null(county_data_status)) {
+  status_text <- paste0(
+    county_data_status$data_status,
+    ": ",
+    county_data_status$counties,
+    collapse = "; "
+  )
+  brief_lines <- c(
+    brief_lines,
+    "",
+    "## County data coverage",
+    "",
+    glue("* Of Georgia's 159 counties, {status_text}.")
+  )
+}
+
 brief_lines <- c(
   brief_lines,
   "",
@@ -121,6 +152,7 @@ brief_lines <- c(
   "* Wild blueberry production was excluded to avoid distortion from Maine's wild blueberry industry.",
   "* Peach production is reported by USDA in tons and converted to pounds only when making direct crop comparisons.",
   "* Acreage comparisons rely on years where USDA reported both crops.",
+  "* A gray county on the map means its value is unavailable; it does not mean zero acres.",
   "",
   "## Don't overstate",
   "",
@@ -147,4 +179,4 @@ cat(output_file)
 cat("\n")
 
 sessionInfo()
-beepr::beep(2)
+if (interactive()) beepr::beep(2)

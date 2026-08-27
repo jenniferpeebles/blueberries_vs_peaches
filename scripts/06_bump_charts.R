@@ -7,6 +7,8 @@
 # Jennifer Peebles / AJC
 # ============================================================
 
+source("config.R")
+
 # ------------------------------------------------------------
 # Read ranked datasets
 # ------------------------------------------------------------
@@ -40,7 +42,7 @@ peach_bump_datawrapper <- peach_ranked %>%
     production,
     unit_desc,
     national_total,
-    pct_of_us
+    percent_of_us
   ) %>%
   arrange(state_name, year)
 
@@ -56,7 +58,7 @@ blueberry_bump_datawrapper <- blueberry_ranked %>%
     production,
     unit_desc,
     national_total,
-    pct_of_us
+    percent_of_us
   ) %>%
   arrange(state_name, year)
 
@@ -145,7 +147,7 @@ reporter_bump_findings <- bind_rows(
     year,
     rank,
     production,
-    pct_of_us
+    percent_of_us
   ) %>%
   arrange(crop, rank)
 
@@ -188,4 +190,4 @@ cat("\n")
 
 sessionInfo()
 
-beepr::beep(2)
+if (interactive()) beepr::beep(2)

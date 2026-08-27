@@ -7,6 +7,8 @@
 # Jennifer Peebles / AJC
 # ============================================================
 
+source("config.R")
+
 # ------------------------------------------------------------
 # Read raw county acreage data
 # ------------------------------------------------------------
@@ -36,6 +38,16 @@ ga_blueberry_counties <- ga_blueberry_counties_raw %>%
     .groups = "drop"
   )
 
+county_blueberry_exclusions <- ga_blueberry_counties_raw %>%
+  mutate(county_name = clean_county_name(county_name)) %>%
+  filter(is.na(value_num)) %>%
+  distinct(county_name, value, .keep_all = TRUE) %>%
+  transmute(
+    county_name,
+    reported_value = value,
+    exclusion_reason = "USDA value missing or suppressed"
+  )
+
 write_csv(
   ga_blueberry_counties,
   file.path(DATA_CLEAN_DIR, "ga_blueberry_counties_clean.csv")
@@ -47,12 +59,11 @@ write_csv(
 
 options(tigris_use_cache = TRUE)
 
-ga_counties <- tigris::counties(
-  state = "GA",
-  year = 2024,
+ga_counties <- peeblestoolbox::get_ga_counties(
+  year = COUNTY_BOUNDARY_YEAR,
+  cb = TRUE,
   class = "sf"
-) %>%
-  ensure_wgs84()
+)
 
 qa_geometry(ga_counties)
 
@@ -67,11 +78,24 @@ county_blueberry_map <- ga_counties %>%
   left_join(
     ga_blueberry_counties,
     by = "county_name"
+  ) %>%
+  left_join(
+    county_blueberry_exclusions %>% select(county_name, exclusion_reason),
+    by = "county_name"
+  ) %>%
+  mutate(
+    data_status = case_when(
+      !is.na(blueberry_acres) ~ "Published value",
+      !is.na(exclusion_reason) ~ "Missing or suppressed by USDA",
+      TRUE ~ "No USDA county record"
+    )
   )
 
 join_qa <- validate_map_join(
   ga_counties %>% mutate(county_name = clean_county_name(NAME)),
-  ga_blueberry_counties,
+  ga_blueberry_counties_raw %>%
+    mutate(county_name = clean_county_name(county_name)) %>%
+    distinct(county_name),
   by = "county_name"
 )
 
@@ -83,6 +107,20 @@ write_csv(
 write_csv(
   join_qa$unmatched_data,
   file.path(DOCS_DIR, "county_join_unmatched_data.csv")
+)
+
+write_csv(
+  county_blueberry_exclusions,
+  file.path(DOCS_DIR, "county_blueberry_suppressed_or_missing.csv")
+)
+
+county_data_status <- county_blueberry_map %>%
+  st_drop_geometry() %>%
+  count(data_status, name = "counties")
+
+write_csv(
+  county_data_status,
+  file.path(DOCS_DIR, "county_blueberry_data_status.csv")
 )
 
 # ------------------------------------------------------------
@@ -102,7 +140,7 @@ export_geojson_wgs84(
 # ------------------------------------------------------------
 
 p_blueberry_map <- build_county_choropleth(
-  sf_object = county_blueberry_map,
+  sf_object = sf::st_transform(county_blueberry_map, 5070),
   fill_variable = blueberry_acres,
   title = "South Georgia is blueberry country",
   subtitle = "County acreage of bearing blueberry plants reported by USDA.",
@@ -134,6 +172,13 @@ write_csv(
   file.path(EXPORT_DIR, "top_blueberry_counties.csv")
 )
 
+crs_notes <- c(
+  paste0("Static map drawn in ", sf::st_crs(5070)$Name, " (EPSG:5070)."),
+  "Datawrapper GeoJSON exported in WGS 84 longitude/latitude (EPSG:4326).",
+  paste0("County boundaries: Census cartographic boundaries, ", COUNTY_BOUNDARY_YEAR, " vintage.")
+)
+writeLines(crs_notes, file.path(DOCS_DIR, "county_map_crs_notes.txt"))
+
 # ------------------------------------------------------------
 # Completion
 # ------------------------------------------------------------
@@ -142,7 +187,9 @@ cat("\n====================================\n")
 cat("COUNTY MAP COMPLETE\n")
 cat("====================================\n")
 cat("\nCounties with acreage records: ", nrow(ga_blueberry_counties), "\n")
+cat("County rows missing or suppressed by USDA: ", nrow(county_blueberry_exclusions), "\n")
+print(county_data_status)
 
 sessionInfo()
 
-beepr::beep(2)
+if (interactive()) beepr::beep(2)

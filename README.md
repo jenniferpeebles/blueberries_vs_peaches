@@ -2,7 +2,7 @@
 
 USDA NASS analysis of Georgia blueberry and peach production, acreage, rankings, and county geography.
 
-README generated: 2026-08-26
+README generated: 2026-08-27
 
 ## Reporting question
 
@@ -30,6 +30,7 @@ logs/
 
 ## Pipeline scripts
 
+* 00_run_all.R
 * 01_download_nass_data.R
 * 02_clean_production_data.R
 * 03_georgia_production_analysis.R
@@ -39,7 +40,6 @@ logs/
 * 07_reporter_brief.R
 * 08_data_dictionary.R
 * 09_build_readme.R
-* 10_run_all.R
 
 ## Reusable functions
 
@@ -68,7 +68,16 @@ logs/
 
 ## Running the project
 
-Run scripts in numerical order or use a future run_all.R orchestrator.
+Open the `.Rproj`, add `NASS_API_KEY` to `.Renviron`, then run `scripts/00_run_all.R` from the project root. The runner stops on the first failed stage and writes a log and CSV summary to `logs/`.
+
+If the raw downloads already exist, scripts 02 through 09 can be rerun without making another API request.
+
+## Peebles Pipeline pieces
+
+* `peeblestoolbox` supplies the chart and map themes, review watermark, plot saver, Georgia county boundaries, and WGS84 GeoJSON export.
+* `docs/production_exclusions.csv` accounts for selected production records excluded because USDA values were missing or suppressed.
+* County map QA distinguishes published values, missing or suppressed values, and counties with no USDA record. Gray does not mean zero.
+* `docs/reporter_brief.md` is generated as a deterministic Mad-Lib from current outputs.
 
 ## Caveats
 
@@ -79,4 +88,5 @@ Run scripts in numerical order or use a future run_all.R orchestrator.
 ## Authorship
 
 Jennifer Peebles / Atlanta Journal-Constitution
-Note: This readme file and code were cleaned up and restructured with the help of Microsoft CoPilot AI
+
+Disclosure: Codex helped Jennifer refactor the pipeline and write this README. Jennifer remains responsible for the reporting, analysis, and publication decisions.

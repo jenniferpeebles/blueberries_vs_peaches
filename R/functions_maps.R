@@ -68,21 +68,12 @@ export_geojson_wgs84 <- function(
   output_file
 ) {
 
-  sf_object <- ensure_wgs84(sf_object)
-
-  sf::st_write(
-    sf_object,
-    dsn = output_file,
-    driver = "GeoJSON",
-    delete_dsn = TRUE,
-    quiet = TRUE
+  peeblestoolbox::export_geojson(
+    layer = sf_object,
+    filename = basename(output_file),
+    folder = dirname(output_file),
+    overwrite = TRUE
   )
-
-  message(
-    paste("GeoJSON written:", output_file)
-  )
-
-  invisible(output_file)
 }
 
 # ------------------------------------------------------------
@@ -113,14 +104,7 @@ build_county_choropleth <- function(
       fill = fill_label,
       caption = caption
     ) +
-    ggplot2::theme_minimal() +
-    ggplot2::theme(
-      axis.text = ggplot2::element_blank(),
-      axis.title = ggplot2::element_blank(),
-      axis.ticks = ggplot2::element_blank(),
-      panel.grid.major = ggplot2::element_blank(),
-      panel.grid.minor = ggplot2::element_blank()
-    )
+    peeblestoolbox::theme_peebles_map()
 }
 
 # ------------------------------------------------------------

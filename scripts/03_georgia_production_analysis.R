@@ -7,6 +7,8 @@
 # Jennifer Peebles / AJC
 # ============================================================
 
+source("config.R")
+
 # ------------------------------------------------------------
 # Read cleaned data
 # ------------------------------------------------------------
@@ -119,7 +121,7 @@ ga_production_datawrapper <- ga_production_lbs |>
     original_unit = unit_desc,
     production_lbs,
     national_rank = rank,
-    pct_of_us
+    percent_of_us
   ) |>
   arrange(commodity, year)
 
@@ -174,19 +176,21 @@ export_watermarked_plot(
 # Reporter-friendly findings
 # ------------------------------------------------------------
 
-latest_year <- max(ga_summary$year, na.rm = TRUE)
-
 reporter_brief <- tibble::tibble(
-  year = latest_year,
+  commodity_label = c("Peaches", "Blueberries"),
   finding = c(
     "Latest Georgia peach rank",
     "Latest Georgia blueberry rank"
-  ),
-  value = c(
-    ga_summary |> filter(year == latest_year, commodity_label == "Peaches") |> pull(rank),
-    ga_summary |> filter(year == latest_year, commodity_label == "Blueberries") |> pull(rank)
   )
-)
+) %>%
+  left_join(
+    ga_summary %>%
+      group_by(commodity_label) %>%
+      filter(year == max(year, na.rm = TRUE)) %>%
+      ungroup() %>%
+      select(commodity_label, year, value = rank),
+    by = "commodity_label"
+  )
 
 write_csv(
   reporter_brief,
@@ -200,8 +204,9 @@ write_csv(
 cat("\n====================================\n")
 cat("GEORGIA ANALYSIS COMPLETE\n")
 cat("====================================\n")
-cat("Latest year: ", latest_year, "\n")
+cat("Latest peach year: ", max(peach_ranked$year, na.rm = TRUE), "\n")
+cat("Latest blueberry year: ", max(blueberry_ranked$year, na.rm = TRUE), "\n")
 
 sessionInfo()
 
-beepr::beep(2)
+if (interactive()) beepr::beep(2)

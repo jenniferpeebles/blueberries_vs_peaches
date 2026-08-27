@@ -7,6 +7,8 @@
 # Jennifer Peebles / AJC
 # ============================================================
 
+source("config.R")
+
 # ------------------------------------------------------------
 # Read raw acreage data
 # ------------------------------------------------------------
@@ -208,4 +210,4 @@ cat("\nComparable acreage years: ", length(common_acre_years), "\n")
 
 sessionInfo()
 
-beepr::beep(2)
+if (interactive()) beepr::beep(2)

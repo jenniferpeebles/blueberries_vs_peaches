@@ -7,6 +7,8 @@
 # Jennifer Peebles / AJC
 # ============================================================
 
+source("config.R")
+
 # ------------------------------------------------------------
 # Helper function
 # ------------------------------------------------------------
@@ -126,4 +128,4 @@ cat("Fields documented: ", nrow(master_dictionary), "\n")
 
 sessionInfo()
 
-beepr::beep(2)
+if (interactive()) beepr::beep(2)
