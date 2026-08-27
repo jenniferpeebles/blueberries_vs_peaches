@@ -7,6 +7,8 @@
 # Jennifer Peebles / AJC
 # ============================================================
 
+source("config.R")
+
 # ------------------------------------------------------------
 # Read raw data
 # ------------------------------------------------------------
@@ -57,13 +59,20 @@ write_csv(
 # Clean peaches
 # ------------------------------------------------------------
 
-peaches_clean <- peaches_raw %>%
+peaches_selected <- peaches_raw %>%
   filter(
     short_desc == "PEACHES, UTILIZED - PRODUCTION, MEASURED IN TONS",
     unit_desc == "TONS",
     prodn_practice_desc == "ALL PRODUCTION PRACTICES",
     domain_desc == "TOTAL"
-  ) %>%
+  )
+
+peach_production_exclusions <- peaches_selected %>%
+  filter(is.na(value_num)) %>%
+  select(any_of(c("year", "state_name", "state_alpha", "value", "cv_percent", "short_desc"))) %>%
+  mutate(exclusion_reason = "USDA value missing or suppressed")
+
+peaches_clean <- peaches_selected %>%
   transmute(
     year,
     state_name,
@@ -79,13 +88,20 @@ peaches_clean <- peaches_raw %>%
 # Clean blueberries
 # ------------------------------------------------------------
 
-blueberries_clean <- blueberries_raw %>%
+blueberries_selected <- blueberries_raw %>%
   filter(
     stringr::str_detect(short_desc, "BLUEBERRIES"),
     stringr::str_detect(short_desc, "TAME"),
     stringr::str_detect(short_desc, "UTILIZED"),
     unit_desc == "LB"
-  ) %>%
+  )
+
+blueberry_production_exclusions <- blueberries_selected %>%
+  filter(is.na(value_num)) %>%
+  select(any_of(c("year", "state_name", "state_alpha", "value", "cv_percent", "short_desc"))) %>%
+  mutate(exclusion_reason = "USDA value missing or suppressed")
+
+blueberries_clean <- blueberries_selected %>%
   transmute(
     year,
     state_name,
@@ -173,6 +189,14 @@ write_csv(
   file.path(DATA_CLEAN_DIR, "ga_summary.csv")
 )
 
+write_csv(
+  bind_rows(
+    peach_production_exclusions %>% mutate(crop = "Peaches"),
+    blueberry_production_exclusions %>% mutate(crop = "Blueberries")
+  ),
+  file.path(DOCS_DIR, "production_exclusions.csv")
+)
+
 # ------------------------------------------------------------
 # Completion summary
 # ------------------------------------------------------------
@@ -184,8 +208,10 @@ cat("\n====================================")
 cat("\nPeach rows:", nrow(peaches_clean))
 cat("\nBlueberry rows:", nrow(blueberries_clean))
 cat("\nGeorgia summary rows:", nrow(ga_summary))
+cat("\nSelected production rows excluded as missing/suppressed:",
+    nrow(peach_production_exclusions) + nrow(blueberry_production_exclusions))
 cat("\n")
 
 sessionInfo()
 
-beepr::beep(2)
+if (interactive()) beepr::beep(2)

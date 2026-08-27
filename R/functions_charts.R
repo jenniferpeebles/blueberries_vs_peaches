@@ -19,16 +19,7 @@ add_watermark_plot <- function(
   watermark_text = "NOT FOR PUBLICATION"
 ) {
 
-  cowplot::ggdraw(p) +
-    cowplot::draw_label(
-      watermark_text,
-      x = 0.5,
-      y = 0.5,
-      angle = 30,
-      size = 32,
-      alpha = 0.18,
-      fontface = "bold"
-    )
+  p + peeblestoolbox::add_peebles_watermark(label = watermark_text)
 }
 
 # ------------------------------------------------------------
@@ -39,11 +30,9 @@ build_ajc_caption <- function(
   credit_text = "Analysis & chart: Jennifer Peebles/AJC"
 ) {
 
-  paste(
-    source_text,
-    credit_text,
-    sep = "\n"
-  )
+  c(source_text, credit_text) %>%
+    stringr::str_wrap(width = CAPTION_WRAP_WIDTH) %>%
+    paste(collapse = "\n")
 }
 
 # ------------------------------------------------------------
@@ -79,17 +68,16 @@ save_plot_with_timestamp <- function(
     )
   )
 
-  ggplot2::ggsave(
-    filename = output_file,
+  peeblestoolbox::save_peebles_plot(
     plot = plot,
+    filename = basename(output_file),
+    folder = dirname(output_file),
     width = width,
     height = height,
     dpi = dpi
   )
 
-  message(paste("Saved:", output_file))
-
-  return(output_file)
+  invisible(output_file)
 }
 
 # ------------------------------------------------------------
@@ -118,9 +106,9 @@ make_bump_chart <- function(
     ggplot2::geom_line(linewidth = 1.2) +
     ggplot2::geom_point(size = 2) +
     ggplot2::scale_y_reverse(
-      breaks = 1:10,
-      limits = c(10, 1)
+      breaks = 1:10
     ) +
+    ggplot2::coord_cartesian(ylim = c(10, 1)) +
     ggplot2::labs(
       title = chart_title,
       subtitle = chart_subtitle,
@@ -138,11 +126,12 @@ make_bump_chart <- function(
 apply_ajc_theme <- function(p) {
 
   p +
-    ggplot2::theme_minimal() +
+    peeblestoolbox::theme_peebles_chart(
+      legend_position = "bottom",
+      angle_x_labels = 0
+    ) +
     ggplot2::theme(
-      plot.title = ggplot2::element_text(face = "bold"),
-      legend.position = "bottom",
-      panel.grid.minor = ggplot2::element_blank()
+      plot.caption = ggplot2::element_text(hjust = 0, lineheight = 1.05)
     )
 }
 

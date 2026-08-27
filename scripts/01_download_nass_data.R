@@ -7,6 +7,8 @@
 # Jennifer Peebles / AJC
 # ============================================================
 
+source("config.R")
+
 
 cat("\n=========================================\n")
 cat("Blueberries vs Peaches\n")
@@ -132,8 +134,6 @@ cat("\nGA blueberry acreage rows:", nrow(ga_blueberry_acres_raw))
 cat("\nGA county acreage rows:", nrow(ga_blueberry_counties_raw))
 cat("\n\nRun completed:", as.character(Sys.time()), "\n")
 
-sink()
-
-beepr::beep(2)
+if (interactive()) beepr::beep(2)
 
 message("01_download_nass_data.R completed successfully.")

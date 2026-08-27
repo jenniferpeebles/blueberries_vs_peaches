@@ -5,11 +5,6 @@
 # Jennifer Peebles / AJC
 # ============================================================
 
-library(tidyverse)
-library(janitor)
-library(rnassqs)
-library(glue)
-
 clean_nass_value <- function(x) {
   if (is.numeric(x)) return(x)
   readr::parse_number(as.character(x))
@@ -18,7 +13,7 @@ clean_nass_value <- function(x) {
 authenticate_nass <- function() {
   api_key <- Sys.getenv("NASS_API_KEY")
   if (api_key == "") stop("NASS_API_KEY not found in .Renviron")
-  nassqs_auth(key = api_key)
+  rnassqs::nassqs_auth(key = api_key)
   message("Successfully authenticated with USDA NASS.")
 }
 
@@ -123,7 +118,11 @@ rank_states <- function(df) {
     dplyr::mutate(
       national_total = sum(production, na.rm = TRUE),
       rank = dplyr::min_rank(dplyr::desc(production)),
-      pct_of_us = production / national_total
+      percent_of_us = dplyr::if_else(
+        national_total > 0,
+        production / national_total * 100,
+        NA_real_
+      )
     ) |>
     dplyr::ungroup()
 }
