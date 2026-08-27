@@ -79,3 +79,4 @@ Run scripts in numerical order or use a future run_all.R orchestrator.
 ## Authorship
 
 Jennifer Peebles / Atlanta Journal-Constitution
+Note: This readme file and code were cleaned up and restructured with the help of Microsoft CoPilot AI
