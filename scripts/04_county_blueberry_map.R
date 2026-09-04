@@ -140,16 +140,18 @@ export_geojson_wgs84(
 # ------------------------------------------------------------
 
 p_blueberry_map <- build_county_choropleth(
-  sf_object = sf::st_transform(county_blueberry_map, 5070),
+  sf_object = sf::st_transform(county_blueberry_map, 3857),
   fill_variable = blueberry_acres,
   title = "South Georgia is blueberry country",
-  subtitle = "County acreage of bearing blueberry plants reported by USDA.",
+  subtitle = str_wrap("Acreage by county of bearing blueberry plants, as reported by the U.S. Department of Agriculture. Map displayed here in Web Mercator projection (3857) but map data will be exported as WGS84.", width = 90),
   caption = build_ajc_caption(
     SOURCE_NASS,
     AJC_CREDIT
   ),
   fill_label = "Bearing acres"
 )
+
+p_blueberry_map
 
 export_watermarked_plot(
   p_blueberry_map,
@@ -173,7 +175,7 @@ write_csv(
 )
 
 crs_notes <- c(
-  paste0("Static map drawn in ", sf::st_crs(5070)$Name, " (EPSG:5070)."),
+  paste0("Static map drawn in ", sf::st_crs(3857)$Name, " (EPSG:3857)."),
   "Datawrapper GeoJSON exported in WGS 84 longitude/latitude (EPSG:4326).",
   paste0("County boundaries: Census cartographic boundaries, ", COUNTY_BOUNDARY_YEAR, " vintage.")
 )

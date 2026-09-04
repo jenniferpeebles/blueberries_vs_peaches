@@ -141,7 +141,7 @@ p_acres <- ggplot2::ggplot(
   ggplot2::scale_y_continuous(labels = scales::comma) +
   ggplot2::labs(
     title = "Georgia farmers plant more blueberry acreage than peach acreage",
-    subtitle = "Years where USDA reports bearing acreage for both crops.",
+    subtitle = str_wrap("Years where the U.S. Department of Agriculture reports bearing acreage for both crops.", width = 90),
     x = NULL,
     y = "Bearing acres",
     fill = NULL,
@@ -152,6 +152,8 @@ p_acres <- ggplot2::ggplot(
   )
 
 p_acres <- apply_ajc_theme(p_acres)
+
+p_acres
 
 export_watermarked_plot(
   p_acres,
@@ -211,3 +213,4 @@ cat("\nComparable acreage years: ", length(common_acre_years), "\n")
 sessionInfo()
 
 if (interactive()) beepr::beep(2)
+

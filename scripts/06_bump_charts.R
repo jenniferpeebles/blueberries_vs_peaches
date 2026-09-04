@@ -79,7 +79,7 @@ write_csv(
 p_peach_bump <- make_bump_chart(
   df = peach_ranked,
   selected_states = SELECTED_PEACH_STATES,
-  chart_title = "Georgia bested in peach production",
+  chart_title = "Peach State bested in peach production",
   chart_subtitle = "Selected states' national rankings in peach production over time.",
   caption_text = build_ajc_caption(
     SOURCE_NASS,
@@ -88,6 +88,8 @@ p_peach_bump <- make_bump_chart(
 )
 
 p_peach_bump <- apply_ajc_theme(p_peach_bump)
+
+p_peach_bump
 
 export_watermarked_plot(
   p_peach_bump,
@@ -102,7 +104,7 @@ export_watermarked_plot(
 p_blueberry_bump <- make_bump_chart(
   df = blueberry_ranked,
   selected_states = SELECTED_BLUEBERRY_STATES,
-  chart_title = "Georgia ascends into top tier for blueberries",
+  chart_title = "Peach State ascends into top tier for blueberries",
   chart_subtitle = "Selected states' national rankings in tame blueberry production.",
   caption_text = build_ajc_caption(
     SOURCE_NASS,
@@ -111,6 +113,8 @@ p_blueberry_bump <- make_bump_chart(
 )
 
 p_blueberry_bump <- apply_ajc_theme(p_blueberry_bump)
+
+p_blueberry_bump
 
 export_watermarked_plot(
   p_blueberry_bump,

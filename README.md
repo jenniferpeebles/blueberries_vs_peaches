@@ -2,17 +2,21 @@
 
 USDA NASS analysis of Georgia blueberry and peach production, acreage, rankings, and county geography.
 
-README generated: 2026-08-27
+README generated: 2026-09-04
 
 ## Reporting question
 
-How does Georgia's modern blueberry industry compare with its traditional peach industry?
+Is Georgia really the Peach State? Or is it now the Blueberry State? How does Georgia's modern blueberry industry compare with its traditional peach industry? Those are questions I wanted to answer for my *Atlanta Journal-Constitution* colleague Olivia Wakim for her [May 2026 story on Georgia blueberries](https://www.ajc.com/food-and-dining/2026/05/blueberries-taking-bigger-bite-of-business-in-peach-state/).
+
+## Key requirement
+
+Users will need an API key from the U.S. Department of Agriculture's National Agricultural Statistics Service (NASS) to use this code. The code assumes the key is saved as `NASS_API_KEY` in the user's .Renviron file. Getting a key is free -- [sign up for one at this link](https://quickstats.nass.usda.gov/api).
 
 ## Data sources
 
-* USDA National Agricultural Statistics Service (NASS) Quick Stats
+* USDA [National Agricultural Statistics Service (NASS)](https://www.nass.usda.gov/) Quick Stats
 * USDA Census of Agriculture
-* U.S. Census Bureau TIGER/Line county boundaries via tigris
+* U.S. Census Bureau TIGER/Line county boundaries via [tigris](https://cran.r-project.org/web/packages/tigris/index.html)
 
 ## Project structure
 
@@ -85,8 +89,11 @@ If the raw downloads already exist, scripts 02 through 09 can be rerun without m
 * Peach production is commonly reported in tons while blueberry production is reported in pounds.
 * Acreage comparisons depend on USDA reporting availability.
 
+## Special thanks
+This project uses a number of R packages, including the [tidyverse family of packages](https://tidyverse.tidyverse.org/index.html) created by [Hadley Wickham](https://hadley.nz/) et al and the [tigris package](https://cran.r-project.org/web/packages/tigris/index.html) created by [Kyle Walker](https://walker-data.com/) that downloads and works with U.S. Census Bureau TIGER/Line geographic files. I am also very grateful for packages including [janitor](https://cran.r-project.org/web/packages/janitor/index.html) and [sf](https://cran.r-project.org/web/packages/sf/index.html), among others. Thank you to the brilliant people behind these packages who wrote all the code and keep it maintained.
+
 ## Authorship
 
-Jennifer Peebles / Atlanta Journal-Constitution
+[Jennifer Peebles](https://www.ajc.com/staff/jennifer-peebles/) / [Atlanta Journal-Constitution](https://www.ajc.com/)
 
-Disclosure: Codex helped Jennifer refactor the pipeline and write this README. Jennifer remains responsible for the reporting, analysis, and publication decisions.
+A note from JP: I built this project with help from ChatGPT/Codex, which drafted this README from the project's code, outputs and my instructions. I want to be transparent about the help I received.
